@@ -4,9 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Compás Caribe</title>
+  <meta name="description" content="Navigate the vibes.">
+  <meta property="og:title" content="Compás Caribe">
+  <meta property="og:description" content="Navigate the vibes.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://compascaribe.com">
+  <meta name="theme-color" content="#0a1628">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 </head>
 <body>
-  <h1>Compás Caribe</h1>
-  <p>Coming soon.</p>
+  <div id="blackout"></div>
+  <div id="canvas-container"></div>
+  <div id="app">
+    <h1 class="title">Compás Caribe</h1>
+    <p class="subtitle">Navigate the vibes</p>
+    <div id="compass-container"></div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
