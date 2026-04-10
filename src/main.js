@@ -4,9 +4,6 @@ import * as ocean from './ocean.js'
 import * as particles from './particles.js'
 import * as compass from './compass.js'
 
-// Ensure GSAP runs even when tab isn't visible (e.g. preview tools)
-gsap.ticker.lagSmoothing(0)
-
 // Shared mouse state
 let mouseX = window.innerWidth / 2
 let mouseY = window.innerHeight / 2
