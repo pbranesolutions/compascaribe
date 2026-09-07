@@ -1,30 +1,82 @@
 # Compás Caribe
 
-A vanilla JS + Vite 8 web application featuring animated 3D ocean (Three.js) and 2D particle effects (GSAP).
+> Custom software, simple websites, and AI agents for real operations.
 
-## Deployment
+Company website for Compás Caribe, a Caribbean-based software development shop specializing in custom operations tools, web presence, and AI workflow automation.
 
-Deployed to Cloudflare Workers Static Assets via Wrangler.
+## About
 
-**Custom Domains:**
-- `compascaribe.com` (apex)
-- `www.compascaribe.com` (www subdomain)
+Compás Caribe builds software for operators and owners who need tools that fit how they already work. We create:
 
-Both domains are configured as Workers Custom Domains on the `compascaribe` Worker. DNS and SSL certificates are automatically managed by Cloudflare when deployed.
+- **Custom software** — operations tools, catalogs, service workflows
+- **Sites & presence** — fast, simple, Cloudflare-hosted websites
+- **Bots & agents** — AI automation in workflows, inbox support, publishing pipelines
+
+## Tech Stack
+
+- **Framework**: Vanilla JavaScript + Vite 8 (ESM)
+- **Styling**: Plain CSS with Caribbean ocean/compass theme
+- **Hosting**: Cloudflare Workers Static Assets (SPA mode)
+- **Deployment**: Manual via `npm run deploy` or auto-deploy via Workers Builds CI on `master`
+- **Custom Domains**: Both `compascaribe.com` (apex) and `www.compascaribe.com` (www subdomain) are configured as Workers Custom Domains on the `compascaribe` Worker. DNS and SSL certificates are automatically managed by Cloudflare when deployed.
 
 ## Development
 
 ```bash
+# Install dependencies
 npm install
-npm run dev      # Vite dev server
-npm run build    # Production build
-npm run preview  # Preview built output via wrangler dev
+
+# Run dev server (Vite)
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build locally
+npm run preview
+
+# Deploy to Cloudflare (requires auth)
+npm run deploy
 ```
 
-## Manual Deployment
+## Site Structure
 
+Single-page site with sections:
+- Hero — brand introduction with CTAs
+- What we do — three service areas
+- How we work — four-step process
+- Selected work — case studies (Gastro Studio, Coordinador)
+- Who it's for — target audience
+- Contact — email and WhatsApp info
+- Footer — copyright and tagline
+
+## Design
+
+- **Colors**: Caribbean ocean palette (deep blues, turquoise accents, sand text)
+- **Typography**: Space Grotesk for clean, modern readability
+- **Performance**: Lightweight CSS animations, no heavy 3D libraries
+- **Accessibility**: WCAG-compliant contrast, keyboard navigation, reduced-motion support
+- **Mobile-first**: Responsive design optimized for all screen sizes
+
+## Deployment
+
+This site is deployed via Cloudflare Workers Builds, which automatically deploys when changes are merged to `master`. The `wrangler.jsonc` config sets up:
+- SPA fallback handling for client-side routing
+- Observability enabled for production monitoring
+- Node.js compatibility flags
+
+To manually deploy:
 ```bash
 npm run deploy
 ```
 
-Deploy is manual — run `npm run deploy` to build and push to Cloudflare Workers.
+Requires Cloudflare authentication. Contact hello@compascaribe.com for access.
+
+## Contact
+
+- **Email**: hello@compascaribe.com
+- **Website**: https://compascaribe.com
+
+---
+
+© 2026 Compás Caribe. Caribbean-based, globally connected.

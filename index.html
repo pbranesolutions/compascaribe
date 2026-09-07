@@ -3,25 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compás Caribe</title>
-  <meta name="description" content="Navigate the vibes.">
-  <meta property="og:title" content="Compás Caribe">
-  <meta property="og:description" content="Navigate the vibes.">
+  <title>Compás Caribe — Custom Software, Sites & AI Agents</title>
+  <meta name="description" content="We build custom software, simple websites, and AI agents for real operations. Caribbean-based, globally connected.">
+  <meta property="og:title" content="Compás Caribe — Custom Software, Sites & AI Agents">
+  <meta property="og:description" content="We build custom software, simple websites, and AI agents for real operations.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://compascaribe.com">
   <meta name="theme-color" content="#0a1628">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="blackout"></div>
-  <div id="canvas-container"></div>
-  <div id="app">
-    <h1 class="title">Compás Caribe</h1>
-    <p class="subtitle">Navigate the vibes</p>
-    <div id="compass-container"></div>
-  </div>
+  <!-- Hero Section -->
+  <section class="hero" id="hero">
+    <div class="hero-background">
+      <div class="ocean-gradient"></div>
+      <div class="compass-watermark" aria-hidden="true">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="90" stroke="currentColor" fill="none" stroke-width="1" opacity="0.3"/>
+          <circle cx="100" cy="100" r="70" stroke="currentColor" fill="none" stroke-width="1" opacity="0.2"/>
+          <line x1="100" y1="20" x2="100" y2="180" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+          <line x1="20" y1="100" x2="180" y2="100" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+          <path d="M 100 30 L 110 100 L 100 70 L 90 100 Z" fill="currentColor" opacity="0.4"/>
+          <text x="100" y="15" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">N</text>
+          <text x="100" y="195" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">S</text>
+          <text x="190" y="105" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">E</text>
+          <text x="10" y="105" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">W</text>
+        </svg>
+      </div>
+    </div>
+    <div class="container hero-content">
+      <h1 class="brand-title">Compás Caribe</h1>
+      <p class="hero-tagline">Navigate the vibes</p>
+      <p class="hero-description">We build custom software, simple websites, and AI agents for real operations.</p>
+      <div class="hero-actions">
+        <a href="mailto:hello@compascaribe.com" class="btn btn-primary">Talk to us</a>
+        <a href="#work" class="btn btn-secondary">See the work</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- What We Do -->
+  <section class="section" id="services">
+    <div class="container">
+      <h2 class="section-title">What we do</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="card-icon">⚙️</div>
+          <h3 class="card-title">Custom Software</h3>
+          <p class="card-description">Operations tools, catalogs, service workflows — built to fit how you already work, not the other way around.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🌐</div>
+          <h3 class="card-title">Sites & Presence</h3>
+          <p class="card-description">Fast, simple, reliable. Hosted on Cloudflare's global edge network for speed and resilience.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🤖</div>
+          <h3 class="card-title">Bots & Agents</h3>
+          <p class="card-description">AI in your workflows — inbox automation, operations support, publishing pipelines, human-in-the-loop handoffs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How We Work -->
+  <section class="section section-alt" id="process">
+    <div class="container">
+      <h2 class="section-title">How we work</h2>
+      <div class="process-steps">
+        <div class="process-step">
+          <span class="process-number">1</span>
+          <h3 class="process-title">Scope</h3>
+          <p class="process-description">We start by understanding what you need and what already works.</p>
+        </div>
+        <div class="process-step">
+          <span class="process-number">2</span>
+          <h3 class="process-title">Build</h3>
+          <p class="process-description">We develop with AI in the loop — faster iteration, cleaner code.</p>
+        </div>
+        <div class="process-step">
+          <span class="process-number">3</span>
+          <h3 class="process-title">Ship</h3>
+          <p class="process-description">We deploy to production when it's ready, not before.</p>
+        </div>
+        <div class="process-step">
+          <span class="process-number">4</span>
+          <h3 class="process-title">Iterate</h3>
+          <p class="process-description">Real use reveals real needs — we refine based on how it actually works.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Selected Work -->
+  <section class="section" id="work">
+    <div class="container">
+      <h2 class="section-title">Selected work</h2>
+      <div class="work-items">
+        <div class="work-item">
+          <h3 class="work-title">Gastro Studio</h3>
+          <p class="work-description">Catalog operations and multi-channel publishing. Centralized product management in WooCommerce with automated distribution to Instagram, Facebook, and WhatsApp — keeping inventory, pricing, and availability in sync across channels.</p>
+        </div>
+        <div class="work-item">
+          <h3 class="work-title">Coordinador</h3>
+          <p class="work-description">Commercial HVAC service operations platform. Work order management, technician dispatch, client communication, and service history tracking — designed for how field service businesses actually operate.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Who It's For -->
+  <section class="section section-alt" id="who">
+    <div class="container container-narrow">
+      <h2 class="section-title">Who it's for</h2>
+      <p class="section-text">
+        Operators and owners who need software that fits how they already work. You're not looking for enterprise platforms or VC-backed SaaS — you need something built for your business, not someone else's vision of it. We build tools that solve real problems without requiring you to change your entire operation.
+      </p>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="section section-contact" id="contact">
+    <div class="container container-narrow">
+      <h2 class="section-title">Let's talk</h2>
+      <p class="contact-description">Ready to start a project or just want to chat about what's possible?</p>
+      <a href="mailto:hello@compascaribe.com" class="contact-email">hello@compascaribe.com</a>
+      <p class="contact-note">We'll respond within 24 hours. WhatsApp available on request.</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p class="footer-text">© 2026 Compás Caribe. Caribbean-based, globally connected.</p>
+    </div>
+  </footer>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
