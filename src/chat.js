@@ -26,7 +26,11 @@ function briefText() {
 }
 function updateHandoff() {
   handoff.hidden = false;
-  email.href = `mailto:hello@compascaribe.com?subject=${encodeURIComponent("Let’s explore a project")}&body=${encodeURIComponent(briefText())}`;
+  // Keep mailto drafts compact; Copy brief retains the complete conversation.
+  const idea = history.find((m) => m.role === "You")?.text || "";
+  const summary = history.filter((m) => m.role !== "You").at(-1)?.text || "";
+  const draft = `Hello Compás Caribe,\n\nMy idea: ${idea.slice(0, 400)}\n\nProject exploration (not an agreed scope or quote): ${summary.slice(0, 450)}\n\nI can share the full conversation.\n\nName:\nCompany:\nBest way to reach me:`;
+  email.href = `mailto:hello@compascaribe.com?subject=${encodeURIComponent("Let’s explore a project")}&body=${encodeURIComponent(draft)}`;
 }
 function append(role, text) {
   history.push({ role, text });
@@ -68,7 +72,8 @@ form.addEventListener("submit", async (event) => {
   document.querySelector(".conversation-hero").classList.add("is-active");
   document.querySelector("#conversation").hidden = false;
   document.querySelector("#idea-suggestions").hidden = true;
-  append("You", message);
+  if (history.at(-1)?.role !== "You" || history.at(-1)?.text !== message)
+    append("You", message);
   input.value = "";
   setBusy(true);
   status.textContent = "Considering your idea…";

@@ -12,9 +12,9 @@ Lead with what the customer can achieve. Internal production methods do not belo
 
 Confident, clear, curious. Explain what the software does and what it makes possible. Use concrete examples. Avoid jargon, technological name-dropping, invented metrics, exaggerated guarantees, and claims about delivery speed that cannot be substantiated.
 
-Primary headline: **What's next is yours to build.**
+Opening question: **What can we build for you?**
 
-Supporting line: **Bespoke applications, ambitious platforms, and connected systems. Built around your world.**
+Supporting line: **An ambitious idea. An everyday frustration. Tell us what you have in mind. Let’s find the possibility in it.**
 
 Brand signature: **Caribbean roots. A wider horizon.**
 
@@ -35,11 +35,13 @@ The four-point bearing mark has an open center: direction and possibility rather
 
 Outfit is the display and wordmark family. Manrope is the reading and interface family. Both are self-hosted, variable-weight fonts with their SIL Open Font License files in `public/fonts/`.
 
-Use generous space, large left-aligned headlines, and asymmetric compositions. The metallic bearing is the signature visual. Avoid stock tropical imagery, robot symbols, neon effects, and generic technology motifs.
+Center the opening around the idea composer. Below it, use generous space, large left-aligned headlines, and asymmetric compositions. The metallic bearing is the signature visual. Avoid stock tropical imagery, robot symbols, neon effects, and generic technology motifs.
 
 ## Motion
 
-Scrolling turns three nested bearings and brings them into alignment. The object answers the visitor's input and rests when input stops. A small pointer response adds depth. Scrolling remains native; no wheel interception or artificial scrolling engine is used.
+Scrolling turns three nested bearings behind the opening. The object answers the visitor's input and rests when input stops. Scrolling remains native; no wheel interception or artificial scrolling engine is used.
+
+The project assistant is clearly identified as AI. It asks short discovery questions and helps prepare a brief; it does not promote internal production methods or promise prices, timelines or agreed scope.
 
 Respect reduced-motion preferences with a static hero, no pinned sequence, and immediate anchor navigation. Content and native disclosures remain usable without JavaScript.
 

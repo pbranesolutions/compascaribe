@@ -22,7 +22,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding: 165px var(--gutter) 75px;
+  padding: 120px var(--gutter) 45px;
 }
 .conversation-hero .hero-grid {
   background-size: 20% 100%;
@@ -54,7 +54,7 @@
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  margin-bottom: 25px;
+  margin-bottom: 18px;
 }
 .intake-intro svg {
   width: 20px;
@@ -62,7 +62,7 @@
   color: var(--blue);
 }
 .intake-heading h1 {
-  font-size: clamp(58px, 6.4vw, 94px);
+  font-size: clamp(58px, 5.4vw, 80px);
   line-height: 1.04;
   letter-spacing: -0.055em;
 }
@@ -70,7 +70,7 @@
   font-size: 14px;
   line-height: 1.85;
   color: #4e6874;
-  margin: 23px auto 32px;
+  margin: 16px auto 22px;
 }
 .idea-form {
   text-align: left;
@@ -93,7 +93,7 @@
   display: block;
   width: 100%;
   resize: vertical;
-  min-height: 84px;
+  min-height: 64px;
   max-height: 190px;
   border: 0;
   outline: 0;
