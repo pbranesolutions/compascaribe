@@ -89,15 +89,8 @@
         aria-labelledby="hero-title"
       >
         <div class="hero-stage">
-          <div class="hero-grid" aria-hidden="true"></div>
-          <div class="sculpture" aria-hidden="true">
-            <div class="orbit-guide guide-one"></div>
-            <div class="bearing">
-              <div class="ring ring-outer"><i></i></div>
-              <div class="ring ring-middle"><i></i></div>
-              <div class="ring ring-inner"><i></i></div>
-            </div>
-          </div>
+          <div class="beach-scene" aria-hidden="true"></div>
+          <canvas class="shore-wave" aria-hidden="true"></canvas>
           <div class="intake-shell">
             <div class="intake-heading">
               <p class="intake-intro">
@@ -106,8 +99,8 @@
               </p>
               <h1 id="hero-title">What can we<br />build for you?</h1>
               <p class="intake-description">
-                An ambitious idea. An everyday frustration. <br />Tell us what
-                you have in mind. Let’s find the possibility in it.
+                Every possibility starts somewhere. <br />Leave yours in the
+                sand.
               </p>
             </div>
             <div class="conversation" id="conversation" hidden>
@@ -136,7 +129,7 @@
                 rows="2"
                 maxlength="600"
                 required
-                placeholder="I’m thinking about…"
+                placeholder="Write your idea in the sand…"
                 aria-describedby="idea-hint privacy-note"
               ></textarea>
               <div class="form-trap" aria-hidden="true">
@@ -149,7 +142,7 @@
                 />
               </div>
               <div class="composer-footer">
-                <span id="idea-hint">A rough idea is enough.</span
+                <span id="idea-hint">A few words can start something.</span
                 ><button class="button" type="submit" id="idea-submit" disabled>
                   <span>Explore my idea</span
                   ><svg aria-hidden="true"><use href="#arrow" /></svg>

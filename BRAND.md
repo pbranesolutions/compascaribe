@@ -57,3 +57,9 @@ Coordinador and Gastro Studio descriptions are retained from the previous site. 
 - `public/social-card.png`: 1200 × 630 sharing image.
 
 The website is the primary expression of this identity. Keep the brand independent of any hosting vendor or internal development tooling.
+
+## Shoreline opening
+
+The opening now follows a first-person Caribbean shoreline: real photographic sand and sea, with a transparent native textarea styled as lettering in sand. Submission runs one 3.1-second canvas swash that dissolves and draws a visual copy of the request toward the ocean, then reveals the saved conversation. Reduced motion skips this transition. No animation-triggered inference or additional model calls occur. Failed requests retain the visitor's idea for email.
+
+`public/shoreline.webp` is an optimized generated asset (~420 KB). Its original PNG is retained in the workspace outputs. Generated with the built-in image generation tool, then encoded as WebP with Sharp. Prompt: Photorealistic Caribbean shoreline from standing human POV, facing the ocean slightly downward; turquoise shallows and fine irregular foam above, uninterrupted warm damp sand below, soft morning light, no people, feet, objects, buildings or text. The horizon is faint and the sand provides an empty writing surface.

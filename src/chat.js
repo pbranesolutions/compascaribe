@@ -1,3 +1,4 @@
+import { washRequest } from "./shoreline.js";
 const form = document.querySelector("#idea-form");
 const input = document.querySelector("#idea-input");
 const submit = document.querySelector("#idea-submit");
@@ -69,6 +70,9 @@ form.addEventListener("submit", async (event) => {
     status.textContent = "Please keep your idea to a few short sentences.";
     return;
   }
+  setBusy(true);
+  // Preserve the input while the wave arrives, then reveal the saved conversation.
+  if (!history.length) await washRequest(input);
   document.querySelector(".conversation-hero").classList.add("is-active");
   document.querySelector("#conversation").hidden = false;
   document.querySelector("#idea-suggestions").hidden = true;
