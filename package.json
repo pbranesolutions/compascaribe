@@ -10,8 +10,6 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
-    "gsap": "^3.14.2",
-    "three": "^0.183.2",
     "vite": "^8.0.8"
   },
   "devDependencies": {
