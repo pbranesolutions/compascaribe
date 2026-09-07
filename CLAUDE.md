@@ -6,12 +6,13 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 
 ## Project Shape
 
-- **Stack:** Vanilla JS + Vite 8 (ESM). No frontend framework. Animation via GSAP, 3D via Three.js (`src/ocean.js`). A separate 2D canvas particle layer lives in `src/particles.js` — it does **not** use Three.js.
-- **Hosting / deploy:** Cloudflare Workers Static Assets via Wrangler (`@cloudflare/vite-plugin`) — assets-only with SPA fallback, **no Worker code exists** in this repo. Deploy is **manual** — `npm run deploy` builds and pushes. There is no auto-deploy on push to `main` unless a separate GitHub Action does it.
+- **Stack:** Vanilla JS + Vite 8 (ESM). No frontend framework. Lightweight CSS animations only — no GSAP or Three.js. Caribbean ocean/compass theme via CSS gradients and SVG.
+- **Hosting / deploy:** Cloudflare Workers Static Assets via Wrangler (`@cloudflare/vite-plugin`) — assets-only with SPA fallback, **no Worker code exists** in this repo. Workers Builds CI is connected to this repo on `master` branch; merging to `master` triggers auto-deploy. Manual deploy via `npm run deploy` also works.
 - **Custom domain:** `compascaribe.com` is configured in the Cloudflare dashboard, not in `wrangler.jsonc`. Don't try to change domains via this repo.
-- **Content / copy lives in:** `index.html` at the repo root (title, subtitle, meta tags). `src/` is **JS modules + `style.css` only** — no user-facing copy lives in `src/` except the compass cardinal labels (N/S/E/W) generated as SVG strings in `src/compass.js`.
-- **Styling:** Plain CSS in `src/style.css` (no Tailwind, no CSS-in-JS in dependencies). Match whatever pattern exists in the repo.
+- **Content / copy lives in:** `index.html` at the repo root — all site content, sections, and copy. `src/` contains **only** `main.js` (minimal entrance animations and smooth scroll) and `style.css`.
+- **Styling:** Plain CSS in `src/style.css` (no Tailwind, no CSS-in-JS in dependencies). Caribbean ocean palette, Space Grotesk font, mobile-first responsive design.
 - **Site language:** English. Only the brand name "Compás Caribe" is Spanish. Default to English for copy edits unless asked otherwise.
+- **Site structure:** One-page company site with sections: Hero, What we do, How we work, Selected work, Who it's for, Contact, Footer.
 - **Don't touch without asking:**
   - `wrangler.toml` / `wrangler.jsonc` (deploy config)
   - `vite.config.*` (build config)
@@ -20,7 +21,7 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
   - Any `.env*` files or secrets
 - **Run before declaring done:** `npm run build` must succeed. There is no lint or test script — if you add tests, add the script too. For visual/animation changes, also run `npm run dev` and confirm in a browser.
 - **Local preview:** `npm run dev` (Vite dev server). `npm run preview` runs a full build and serves it via `wrangler dev`; since there's no Worker code, this is essentially a static preview of the built `dist/`.
-- **Performance note:** GSAP + Three.js means bundle size and main-thread cost matter. Don't add new heavy dependencies without flagging.
+- **Performance note:** Site is intentionally lightweight — vanilla JS, CSS animations only. Avoid adding heavy dependencies.
 
 ## 1. Think Before Coding
 

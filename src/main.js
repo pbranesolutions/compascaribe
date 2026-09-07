@@ -1,82 +1,59 @@
 import './style.css'
-import { gsap } from 'gsap'
-import * as ocean from './ocean.js'
-import * as particles from './particles.js'
-import * as compass from './compass.js'
 
-// Shared mouse state
-let mouseX = window.innerWidth / 2
-let mouseY = window.innerHeight / 2
-
-// Init all layers
-const canvasContainer = document.getElementById('canvas-container')
-const compassContainer = document.getElementById('compass-container')
-
-ocean.init(canvasContainer)
-particles.init(canvasContainer)
-compass.init(compassContainer)
-
-// Mouse tracking
-document.addEventListener('mousemove', (e) => {
-  mouseX = e.clientX
-  mouseY = e.clientY
-  particles.updateMouse(mouseX, mouseY)
-  compass.updateMouse(mouseX, mouseY)
-})
-
-// Touch tracking
-document.addEventListener('touchmove', (e) => {
-  const touch = e.touches[0]
-  mouseX = touch.clientX
-  mouseY = touch.clientY
-  particles.updateMouse(mouseX, mouseY)
-  compass.updateMouse(mouseX, mouseY)
-}, { passive: true })
-
-// Resize
-window.addEventListener('resize', () => {
-  ocean.resize()
-  particles.resize()
-})
-
-// --- Entrance animation ---
-// Query elements AFTER init so dynamically-created elements exist
-const blackout = document.getElementById('blackout')
-const title = document.querySelector('.title')
-const subtitle = document.querySelector('.subtitle')
-const compassEl = document.querySelector('.compass')
-
-const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-
-tl.to(blackout, {
-  opacity: 0,
-  duration: 1.5,
-  ease: 'power2.inOut',
-  onComplete: () => blackout.remove()
-})
-.to(title, {
-  opacity: 1,
-  y: 0,
-  duration: 1.2,
-}, '-=0.5')
-.to(subtitle, {
-  opacity: 0.8,
-  duration: 1,
-}, '-=0.6')
-.to(compassEl, {
-  opacity: 1,
-  scale: 1,
-  duration: 1,
-  ease: 'back.out(1.7)',
-}, '-=0.5')
-.add(() => {
-  // Animate vignette pseudo-element via CSS custom property
-  gsap.to(document.documentElement, {
-    '--vignette-opacity': 1,
-    duration: 1.5,
-    ease: 'power2.inOut'
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    const href = this.getAttribute('href')
+    if (href === '#') return
+    
+    e.preventDefault()
+    const target = document.querySelector(href)
+    if (target) {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    }
   })
-  // Activate continuous animations
-  title.classList.add('active')
-  compassEl.classList.add('active')
-}, '-=0.3')
+})
+
+// Simple entrance animation
+document.addEventListener('DOMContentLoaded', () => {
+  const hero = document.querySelector('.hero-content')
+  if (hero) {
+    hero.style.opacity = '0'
+    hero.style.transform = 'translateY(20px)'
+    hero.style.transition = 'opacity 0.8s ease, transform 0.8s ease'
+    
+    setTimeout(() => {
+      hero.style.opacity = '1'
+      hero.style.transform = 'translateY(0)'
+    }, 100)
+  }
+})
+
+// Intersection Observer for fade-in on scroll
+const observerOptions = {
+  threshold: 0.1,
+  rootMargin: '0px 0px -50px 0px'
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1'
+      entry.target.style.transform = 'translateY(0)'
+    }
+  })
+}, observerOptions)
+
+// Observe sections for fade-in effect
+document.addEventListener('DOMContentLoaded', () => {
+  const sections = document.querySelectorAll('.section')
+  sections.forEach(section => {
+    section.style.opacity = '0'
+    section.style.transform = 'translateY(30px)'
+    section.style.transition = 'opacity 0.6s ease, transform 0.6s ease'
+    observer.observe(section)
+  })
+})
