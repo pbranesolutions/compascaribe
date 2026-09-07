@@ -367,7 +367,7 @@ textarea:focus-visible {
     padding: 132px 22px 55px;
   }
   .intake-heading h1 {
-    font-size: clamp(51px, 12vw, 75px);
+    font-size: clamp(38px, 12vw, 75px);
   }
   .intake-intro {
     font-size: 10px;
@@ -395,6 +395,7 @@ textarea:focus-visible {
     font-size: 9px;
   }
   .composer-footer .button {
+    white-space: nowrap;
     font-size: 10px;
     padding: 11px 13px;
     gap: 11px;
