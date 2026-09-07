@@ -18,7 +18,7 @@ Compás Caribe builds software for operators and owners who need tools that fit 
 - **Styling**: Plain CSS with Caribbean ocean/compass theme
 - **Hosting**: Cloudflare Workers Static Assets (SPA mode)
 - **Deployment**: Manual via `npm run deploy` or auto-deploy via Workers Builds CI on `master`
-- **Domain**: `compascaribe.com` (configured in Cloudflare dashboard)
+- **Custom Domains**: Both `compascaribe.com` (apex) and `www.compascaribe.com` (www subdomain) are configured as Workers Custom Domains on the `compascaribe` Worker. DNS and SSL certificates are automatically managed by Cloudflare when deployed.
 
 ## Development
 

@@ -10,5 +10,9 @@
   },
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  "routes": [
+    { "pattern": "compascaribe.com", "custom_domain": true },
+    { "pattern": "www.compascaribe.com", "custom_domain": true }
   ]
 }
