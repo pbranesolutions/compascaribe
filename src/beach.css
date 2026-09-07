@@ -57,7 +57,7 @@
   text-shadow: 0 1px 8px #113f48;
 }
 .conversation-hero:not(.is-active) .idea-form {
-  margin-top: clamp(100px, 16svh, 180px);
+  margin-top: max(100px, calc(max(492px, 60svh) - 340px));
 }
 .idea-form,
 .idea-form:focus-within {
@@ -211,7 +211,7 @@
     line-height: 1.6;
   }
   .conversation-hero:not(.is-active) .idea-form {
-    margin-top: 180px;
+    margin-top: max(180px, calc(60svh - 280px));
     padding: 5px 0 12px;
   }
   .idea-form textarea {
