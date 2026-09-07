@@ -83,63 +83,153 @@
       ></a>
     </header>
     <main>
-      <section class="hero" id="top" aria-labelledby="hero-title">
+      <section
+        class="hero conversation-hero"
+        id="top"
+        aria-labelledby="hero-title"
+      >
         <div class="hero-stage">
           <div class="hero-grid" aria-hidden="true"></div>
-          <div class="hero-copy">
-            <p class="intro-label">
-              <span class="small-mark" aria-hidden="true"></span> Ambitious
-              ideas. Exceptional software.
-            </p>
-            <h1 id="hero-title">What’s next<br />is yours<br />to build.</h1>
-            <p class="hero-description">
-              Bespoke applications, ambitious platforms, and connected systems.
-              Built around your world.
-            </p>
-            <a class="text-link" href="#capabilities"
-              >Explore the possibilities <span aria-hidden="true">↓</span></a
-            >
-          </div>
-          <div class="hero-next">
-            <p class="intro-label">
-              From possibility to something you can use.
-            </p>
-            <h2>Every part.<br />One bigger<br />picture.</h2>
-            <p class="hero-description">
-              The interface. The logic. The connections behind it. We bring it
-              all together in software that works for you.
-            </p>
-          </div>
           <div class="sculpture" aria-hidden="true">
             <div class="orbit-guide guide-one"></div>
-            <div class="orbit-guide guide-two"></div>
-            <span class="sculpture-cross cross-one">+</span
-            ><span class="sculpture-cross cross-two">+</span>
-            <div class="bearing-shadow"></div>
             <div class="bearing">
               <div class="ring ring-outer"><i></i></div>
               <div class="ring ring-middle"><i></i></div>
               <div class="ring ring-inner"><i></i></div>
-              <div class="bearing-core">
-                <svg><use href="#brand-mark" /></svg>
-              </div>
-            </div>
-            <div class="sculpture-caption">
-              <span class="caption-line"></span
-              ><span>Possibility, in motion.</span>
             </div>
           </div>
-          <div class="hero-bottom">
-            <a class="scroll-cue" href="#capabilities"
-              ><span class="scroll-wheel" aria-hidden="true"><i></i></span
-              ><span>Scroll. Set things in motion.</span></a
-            >
-            <div class="bearing-progress" aria-hidden="true">
-              <span>Imagine</span>
-              <div><i></i></div>
-              <span>Build</span>
+          <div class="intake-shell">
+            <div class="intake-heading">
+              <p class="intake-intro">
+                <svg aria-hidden="true"><use href="#brand-mark" /></svg> A new
+                idea starts here.
+              </p>
+              <h1 id="hero-title">What can we<br />build for you?</h1>
+              <p class="intake-description">
+                An ambitious idea. An everyday frustration.<br />Tell us what
+                you have in mind. Let’s find the possibility in it.
+              </p>
             </div>
-            <span class="origin-note">Caribbean roots. A wider horizon.</span>
+            <div class="conversation" id="conversation" hidden>
+              <div class="conversation-heading">
+                <span class="assistant-status" aria-hidden="true"></span
+                ><span>Compás Caribe · AI project assistant</span
+                ><span class="conversation-kind">Your idea, taking shape</span>
+              </div>
+              <div
+                class="chat-log"
+                id="chat-log"
+                role="log"
+                aria-live="polite"
+                aria-label="Project conversation"
+                aria-relevant="additions"
+              ></div>
+            </div>
+            <form class="idea-form" id="idea-form">
+              <label class="visually-hidden" for="idea-input"
+                >What would you like us to build?</label
+              >
+              <textarea
+                id="idea-input"
+                disabled
+                name="idea"
+                rows="2"
+                maxlength="600"
+                required
+                placeholder="I’m thinking about…"
+                aria-describedby="idea-hint privacy-note"
+              ></textarea>
+              <div class="form-trap" aria-hidden="true">
+                <label for="website-field">Website</label
+                ><input
+                  id="website-field"
+                  name="website"
+                  tabindex="-1"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="composer-footer">
+                <span id="idea-hint">A rough idea is enough.</span
+                ><button class="button" type="submit" id="idea-submit" disabled>
+                  <span>Explore my idea</span
+                  ><svg aria-hidden="true"><use href="#arrow" /></svg>
+                </button>
+              </div>
+            </form>
+            <p
+              id="chat-status"
+              class="chat-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div
+              class="idea-suggestions"
+              id="idea-suggestions"
+              aria-label="Ideas to start with"
+            >
+              <button
+                type="button"
+                data-idea="I have an idea for a custom app and want to explore what it could become."
+              >
+                I have an app idea <span aria-hidden="true">+</span></button
+              ><button
+                type="button"
+                data-idea="My team uses several disconnected tools. I want our operations to work together."
+              >
+                Connect my operations <span aria-hidden="true">+</span></button
+              ><button
+                type="button"
+                data-idea="I want an intelligent workflow that can help my team with repetitive work."
+              >
+                Put a workflow to work <span aria-hidden="true">+</span>
+              </button>
+            </div>
+            <div class="brief-handoff" id="brief-handoff" hidden>
+              <div>
+                <strong>Let’s take it from here.</strong>
+                <p>Turn this conversation into a project discussion.</p>
+              </div>
+              <a
+                class="button"
+                id="email-brief"
+                href="mailto:hello@compascaribe.com"
+                >Email this brief
+                <svg aria-hidden="true"><use href="#arrow" /></svg></a
+              ><button type="button" class="copy-brief" id="copy-brief">
+                Copy brief
+              </button>
+            </div>
+            <div class="intake-footnote">
+              <p id="privacy-note">
+                A short conversation with our AI project assistant. Please leave
+                out confidential information.
+              </p>
+              <details class="chat-privacy">
+                <summary>About your conversation</summary>
+                <p>
+                  Messages are processed by Cloudflare Workers AI to respond to
+                  your idea. This site does not save chat transcripts; the
+                  conversation stays in this tab and expires after 30 minutes.
+                  We keep limited usage records, including a daily protected
+                  identifier derived from your IP address, to prevent abuse.
+                  Nothing is emailed until you choose to send it from your email
+                  app.
+                </p>
+              </details>
+            </div>
+            <noscript
+              ><p class="chat-status">
+                The assistant needs JavaScript. You can describe your idea
+                directly to
+                <a href="mailto:hello@compascaribe.com"
+                  >hello@compascaribe.com</a
+                >.
+              </p></noscript
+            >
+            <a class="browse-link" href="#capabilities"
+              >Rather look around? Explore what we build
+              <span aria-hidden="true">↓</span></a
+            >
           </div>
         </div>
       </section>

@@ -1,18 +1,30 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "compascaribe",
+  "main": "worker/index.js",
+  "preview_urls": true,
   "compatibility_date": "2026-04-10",
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
   "assets": {
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    "not_found_handling": "single-page-application",
   },
-  "compatibility_flags": [
-    "nodejs_compat"
+  "ai": { "binding": "AI", "remote": false },
+  "d1_databases": [
+    {
+      "binding": "BRIEF_DB",
+      "database_name": "compascaribe-brief-usage",
+      "database_id": "5470810c-a295-4ecd-b6c7-b6b5052ef035",
+      "migrations_dir": "migrations",
+    },
   ],
+  "vars": { "BRIEF_ENABLED": "true" },
+  "compatibility_flags": ["nodejs_compat"],
   "routes": [
     { "pattern": "compascaribe.com", "custom_domain": true },
-    { "pattern": "www.compascaribe.com", "custom_domain": true }
-  ]
+    { "pattern": "www.compascaribe.com", "custom_domain": true },
+  ],
 }
