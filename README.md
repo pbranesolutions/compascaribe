@@ -1,82 +1,53 @@
 # Compás Caribe
 
-> Custom software, simple websites, and AI agents for real operations.
+Ambitious ideas. Exceptional software.
 
-Company website for Compás Caribe, a Caribbean-based software development shop specializing in custom operations tools, web presence, and AI workflow automation.
-
-## About
-
-Compás Caribe builds software for operators and owners who need tools that fit how they already work. We create:
-
-- **Custom software** — operations tools, catalogs, service workflows
-- **Sites & presence** — fast, simple, Cloudflare-hosted websites
-- **Bots & agents** — AI automation in workflows, inbox support, publishing pipelines
-
-## Tech Stack
-
-- **Framework**: Vanilla JavaScript + Vite 8 (ESM)
-- **Styling**: Plain CSS with Caribbean ocean/compass theme
-- **Hosting**: Cloudflare Workers Static Assets (SPA mode)
-- **Deployment**: Manual via `npm run deploy` or auto-deploy via Workers Builds CI on `master`
-- **Custom Domains**: Both `compascaribe.com` (apex) and `www.compascaribe.com` (www subdomain) are configured as Workers Custom Domains on the `compascaribe` Worker. DNS and SSL certificates are automatically managed by Cloudflare when deployed.
+Company website for Compás Caribe: bespoke applications, scalable platforms, connected operations, and intelligent workflows. Brand positioning, visual rules, and asset guidance live in [BRAND.md](BRAND.md).
 
 ## Development
 
-```bash
-# Install dependencies
-npm install
-
-# Run dev server (Vite)
+```sh
+npm ci
 npm run dev
-
-# Build for production
 npm run build
-
-# Preview production build locally
 npm run preview
-
-# Deploy to Cloudflare (requires auth)
-npm run deploy
 ```
 
-## Site Structure
+The site uses vanilla JavaScript, plain CSS, Vite 8, and the Cloudflare Vite plugin. The interactive bearing is made from masked CSS surfaces with scroll-driven transforms. It uses native scrolling, stops rendering after settling, and respects reduced-motion preferences. There are no new runtime dependencies.
 
-Single-page site with sections:
-- Hero — brand introduction with CTAs
-- What we do — three service areas
-- How we work — four-step process
-- Selected work — case studies (Gastro Studio, Coordinador)
-- Who it's for — target audience
-- Contact — email and WhatsApp info
-- Footer — copyright and tagline
+Outfit and Manrope fonts are self-hosted in `public/fonts/`, alongside their licenses. The site makes no third-party font requests.
 
-## Design
+## Content and assets
 
-- **Colors**: Caribbean ocean palette (deep blues, turquoise accents, sand text)
-- **Typography**: Space Grotesk for clean, modern readability
-- **Performance**: Lightweight CSS animations, no heavy 3D libraries
-- **Accessibility**: WCAG-compliant contrast, keyboard navigation, reduced-motion support
-- **Mobile-first**: Responsive design optimized for all screen sizes
+- `index.html`: all page content, semantic navigation, service disclosures, and project descriptions.
+- `src/style.css`: brand tokens, responsive layouts, sculpture, and reduced-motion styles.
+- `src/main.js`: scroll/pointer response and current copyright year.
+- `public/brand-mark.svg`: reusable vector identity.
+- `public/favicon.svg`: site icon.
+- `public/social-card.svg` and `.png`: editable and rendered sharing artwork.
+
+Project visuals are labeled interface concepts. Descriptions for Coordinador and Gastro Studio come from the existing company site; no case-study results or testimonials have been invented.
+
+## Verification
+
+Run `npm run build` and inspect `npm run dev` in a browser. Check desktop and mobile widths, native anchor links, keyboard-operated service/project disclosures, contact address, and scroll response. With reduced motion enabled, the hero is static and has no extended pinned sequence. Core content, links, and disclosures also work without JavaScript.
 
 ## Deployment
 
-This site is deployed via Cloudflare Workers Builds, which automatically deploys when changes are merged to `master`. The `wrangler.jsonc` config sets up:
-- SPA fallback handling for client-side routing
-- Observability enabled for production monitoring
-- Node.js compatibility flags
+GitHub repository: `pbranesolutions/compascaribe`. Source of truth: `master`.
 
-To manually deploy:
-```bash
-npm run deploy
-```
+Preferred flow: PR → review → merge to `master` → Cloudflare Workers Builds.
 
-Requires Cloudflare authentication. Contact hello@compascaribe.com for access.
+- Production build command: `npm run build`.
+- Production deploy command: `npx wrangler deploy`.
+- Other branches build with `npm run build` and upload preview versions with `npx wrangler versions upload`.
+- Worker: `compascaribe`.
+- Hosting: Workers Static Assets with SPA fallback.
+- Custom domains: `compascaribe.com` and `www.compascaribe.com`, configured in `wrangler.jsonc`.
+- Observability is enabled.
+
+Keep deployment configuration in source control. Do not make routine manual dashboard edits or deploy from a local working copy in place of the PR workflow.
 
 ## Contact
 
-- **Email**: hello@compascaribe.com
-- **Website**: https://compascaribe.com
-
----
-
-© 2026 Compás Caribe. Caribbean-based, globally connected.
+`hello@compascaribe.com` forwards through Cloudflare Email Routing to `compascaribesrl@gmail.com`.
