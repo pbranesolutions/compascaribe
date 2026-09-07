@@ -1,0 +1,246 @@
+/* One continuous shoreline; the composer is the sand itself. */
+.conversation-hero.hero {
+  background: #ddceb4;
+  isolation: isolate;
+}
+.conversation-hero .hero-stage {
+  min-height: max(820px, 100svh);
+  padding: 140px var(--gutter) 40px;
+  display: block;
+  overflow: hidden;
+}
+.beach-scene {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: #ddceb4 url("/shoreline.webp") center center / cover no-repeat;
+}
+.beach-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #093e4224,
+    transparent 35%,
+    #ecdfc31a 60%,
+    #edddbe20
+  );
+}
+.shore-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+.intake-shell {
+  max-width: 780px;
+}
+.intake-intro {
+  display: none;
+}
+.intake-heading {
+  color: #f9fbf4;
+  text-shadow: 0 2px 22px #123f4544;
+}
+.intake-heading h1 {
+  font-size: clamp(48px, 5.4vw, 78px);
+  font-weight: 400;
+  letter-spacing: -0.05em;
+}
+.intake-description {
+  color: #fff;
+  font-size: 14px;
+  margin: 15px auto 0;
+  text-shadow: 0 1px 8px #113f48;
+}
+.conversation-hero:not(.is-active) .idea-form {
+  margin-top: max(100px, calc(max(492px, 60svh) - 340px));
+}
+.idea-form,
+.idea-form:focus-within {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 8px 24px 12px;
+}
+.idea-form textarea {
+  font:
+    italic 400 clamp(25px, 3vw, 38px)/1.5 Outfit,
+    sans-serif;
+  min-height: 110px;
+  resize: none;
+  color: #68513a;
+  text-align: center;
+  caret-color: #493d2e;
+  text-shadow:
+    0 1px 1px #fff4d9,
+    0 -1px 1px #49341d80;
+}
+.idea-form textarea::placeholder {
+  color: #7a654d;
+  opacity: 0.9;
+}
+.idea-form textarea:focus-visible {
+  outline: 1px dashed #79634880;
+  outline-offset: 12px;
+  border-radius: 4px;
+}
+.composer-footer {
+  margin-top: 16px;
+}
+.composer-footer > span {
+  color: #4d493a;
+  font-size: 11px;
+}
+.composer-footer .button {
+  background: #174d50;
+  color: #fff9e9;
+  padding: 14px 22px;
+}
+.idea-suggestions {
+  display: none;
+}
+.intake-footnote,
+.chat-privacy {
+  color: #49483c;
+  font-size: 10px;
+}
+.intake-footnote {
+  margin-top: 18px;
+}
+.browse-link {
+  color: #343f36;
+  margin-top: 18px;
+}
+.site-header:not(.scrolled) {
+  color: #fffbed;
+  background: transparent;
+  border-color: #ffffff18;
+}
+.site-header:not(.scrolled) .brand-symbol {
+  color: #f6f5df;
+  --mark-center: #438a8b;
+}
+.site-header:not(.scrolled) .button {
+  background: #123e4655;
+  border: 1px solid #ffffff66;
+  color: #fff;
+}
+.is-washing .intake-heading,
+.is-washing .composer-footer,
+.is-washing .intake-footnote,
+.is-washing .browse-link,
+.is-washing .chat-status {
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.is-washing .idea-form textarea {
+  transition: opacity 0.4s 1s;
+  opacity: 0;
+}
+.sand-echo {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: center;
+  color: #68513a;
+  text-shadow:
+    0 1px 1px #fff4d9,
+    0 -1px 1px #49341d80;
+}
+.is-active .hero-stage {
+  padding-top: 135px;
+}
+.is-active .intake-shell {
+  background: #f6efdfef;
+  border: 1px solid #fff8e0aa;
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: 0 18px 70px #164b4630;
+}
+.is-active .intake-heading {
+  color: #174449;
+  text-shadow: none;
+}
+.is-active .intake-heading h1 {
+  font-size: 35px;
+}
+.is-active .idea-form {
+  background: #fffaf177;
+  border: 1px solid #b9ac9277;
+  border-radius: 12px;
+}
+.is-active .idea-form textarea {
+  font:
+    400 17px/1.6 Manrope,
+    sans-serif;
+  min-height: 55px;
+  text-align: left;
+  text-shadow: none;
+}
+.is-active .from-visitor {
+  background: #e2dbc9;
+}
+.is-active .from-assistant .message-role {
+  color: #1a5b5c;
+}
+.is-active .chat-log {
+  max-height: 320px;
+}
+@media (max-width: 700px) {
+  .conversation-hero .hero-stage {
+    min-height: max(780px, 100svh);
+    padding: 132px 22px 35px;
+  }
+  .beach-scene {
+    background-size: auto 100%;
+  }
+  .intake-heading h1 {
+    font-size: clamp(40px, 10.7vw, 62px);
+  }
+  .intake-description {
+    font-size: 12px;
+    max-width: 290px;
+    line-height: 1.6;
+  }
+  .conversation-hero:not(.is-active) .idea-form {
+    margin-top: max(180px, calc(60svh - 280px));
+    padding: 5px 0 12px;
+  }
+  .idea-form textarea {
+    font-size: 27px;
+    min-height: 130px;
+  }
+  .composer-footer .button {
+    padding: 12px 16px;
+  }
+  .composer-footer > span {
+    font-size: 10px;
+    max-width: 100px;
+  }
+  .intake-footnote {
+    font-size: 9px;
+  }
+  .is-active .hero-stage {
+    padding: 110px 14px 35px;
+  }
+  .is-active .intake-shell {
+    padding: 22px 17px;
+    border-radius: 18px;
+  }
+  .is-active .intake-heading h1 {
+    font-size: 30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-washing * {
+    transition: none !important;
+  }
+}

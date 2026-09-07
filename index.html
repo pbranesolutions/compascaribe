@@ -1,147 +1,580 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compás Caribe — Custom Software, Sites & AI Agents</title>
-  <meta name="description" content="We build custom software, simple websites, and AI agents for real operations. Caribbean-based, globally connected.">
-  <meta property="og:title" content="Compás Caribe — Custom Software, Sites & AI Agents">
-  <meta property="og:description" content="We build custom software, simple websites, and AI agents for real operations.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://compascaribe.com">
-  <meta name="theme-color" content="#0a1628">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-</head>
-<body>
-  <!-- Hero Section -->
-  <section class="hero" id="hero">
-    <div class="hero-background">
-      <div class="ocean-gradient"></div>
-      <div class="compass-watermark" aria-hidden="true">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="100" cy="100" r="90" stroke="currentColor" fill="none" stroke-width="1" opacity="0.3"/>
-          <circle cx="100" cy="100" r="70" stroke="currentColor" fill="none" stroke-width="1" opacity="0.2"/>
-          <line x1="100" y1="20" x2="100" y2="180" stroke="currentColor" stroke-width="1" opacity="0.2"/>
-          <line x1="20" y1="100" x2="180" y2="100" stroke="currentColor" stroke-width="1" opacity="0.2"/>
-          <path d="M 100 30 L 110 100 L 100 70 L 90 100 Z" fill="currentColor" opacity="0.4"/>
-          <text x="100" y="15" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">N</text>
-          <text x="100" y="195" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">S</text>
-          <text x="190" y="105" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">E</text>
-          <text x="10" y="105" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">W</text>
-        </svg>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Compás Caribe — Ambitious ideas. Exceptional software.</title>
+    <meta
+      name="description"
+      content="Bespoke applications, ambitious platforms, and connected systems. Compás Caribe designs and builds software around what your business could become."
+    />
+    <meta name="theme-color" content="#edf2f5" />
+    <link rel="canonical" href="https://compascaribe.com/" />
+    <meta
+      property="og:title"
+      content="Compás Caribe — Ambitious ideas. Exceptional software."
+    />
+    <meta
+      property="og:description"
+      content="Your next big idea deserves software built for it. Bespoke applications, scalable platforms, and intelligent workflows."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://compascaribe.com/" />
+    <meta
+      property="og:image"
+      content="https://compascaribe.com/social-card.png"
+    />
+    <meta
+      property="og:image:alt"
+      content="Compás Caribe. What's next is yours to build."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link
+      rel="preload"
+      href="/fonts/outfit-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/manrope-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#capabilities">Skip to content</a>
+    <svg
+      class="svg-definitions"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <symbol id="brand-mark" viewBox="0 0 48 48">
+        <path
+          d="M24 2 30 18 46 24 30 30 24 46 18 30 2 24 18 18Z"
+          fill="currentColor"
+        />
+        <circle cx="24" cy="24" r="5" fill="var(--mark-center, #edf2f5)" />
+      </symbol>
+      <symbol id="arrow" viewBox="0 0 24 24">
+        <path
+          d="M5 19 19 5M5 5h14v14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        />
+      </symbol>
+    </svg>
+    <header class="site-header">
+      <a href="#top" class="brand" aria-label="Compás Caribe home"
+        ><svg class="brand-symbol" aria-hidden="true">
+          <use href="#brand-mark" /></svg
+        ><span>compás<span class="brand-second">caribe</span></span></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="#capabilities">What we build</a
+        ><a href="#work">Selected work</a><a href="#approach">Our approach</a>
+      </nav>
+      <a class="button button-small" href="#contact"
+        >Let’s talk <svg aria-hidden="true"><use href="#arrow" /></svg
+      ></a>
+    </header>
+    <main>
+      <section
+        class="hero conversation-hero"
+        id="top"
+        aria-labelledby="hero-title"
+      >
+        <div class="hero-stage">
+          <div class="beach-scene" aria-hidden="true"></div>
+          <canvas class="shore-wave" aria-hidden="true"></canvas>
+          <div class="intake-shell">
+            <div class="intake-heading">
+              <p class="intake-intro">
+                <svg aria-hidden="true"><use href="#brand-mark" /></svg> A new
+                idea starts here.
+              </p>
+              <h1 id="hero-title">What can we<br />build for you?</h1>
+              <p class="intake-description">
+                Every possibility starts somewhere. <br />Leave yours in the
+                sand.
+              </p>
+            </div>
+            <div class="conversation" id="conversation" hidden>
+              <div class="conversation-heading">
+                <span class="assistant-status" aria-hidden="true"></span
+                ><span>Compás Caribe · AI project assistant</span
+                ><span class="conversation-kind">Your idea, taking shape</span>
+              </div>
+              <div
+                class="chat-log"
+                id="chat-log"
+                role="log"
+                aria-live="polite"
+                aria-label="Project conversation"
+                aria-relevant="additions"
+              ></div>
+            </div>
+            <form class="idea-form" id="idea-form">
+              <label class="visually-hidden" for="idea-input"
+                >What would you like us to build?</label
+              >
+              <textarea
+                id="idea-input"
+                disabled
+                name="idea"
+                rows="2"
+                maxlength="600"
+                required
+                placeholder="Write your idea in the sand…"
+                aria-describedby="idea-hint privacy-note"
+              ></textarea>
+              <div class="form-trap" aria-hidden="true">
+                <label for="website-field">Website</label
+                ><input
+                  id="website-field"
+                  name="website"
+                  tabindex="-1"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="composer-footer">
+                <span id="idea-hint">A few words can start something.</span
+                ><button class="button" type="submit" id="idea-submit" disabled>
+                  <span>Explore my idea</span
+                  ><svg aria-hidden="true"><use href="#arrow" /></svg>
+                </button>
+              </div>
+            </form>
+            <p
+              id="chat-status"
+              class="chat-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div
+              class="idea-suggestions"
+              id="idea-suggestions"
+              aria-label="Ideas to start with"
+            >
+              <button
+                type="button"
+                data-idea="I have an idea for a custom app and want to explore what it could become."
+              >
+                I have an app idea <span aria-hidden="true">+</span></button
+              ><button
+                type="button"
+                data-idea="My team uses several disconnected tools. I want our operations to work together."
+              >
+                Connect my operations <span aria-hidden="true">+</span></button
+              ><button
+                type="button"
+                data-idea="I want an intelligent workflow that can help my team with repetitive work."
+              >
+                Put a workflow to work <span aria-hidden="true">+</span>
+              </button>
+            </div>
+            <div class="brief-handoff" id="brief-handoff" hidden>
+              <div>
+                <strong>Let’s take it from here.</strong>
+                <p>Turn this conversation into a project discussion.</p>
+              </div>
+              <a
+                class="button"
+                id="email-brief"
+                href="mailto:hello@compascaribe.com"
+                >Email this brief
+                <svg aria-hidden="true"><use href="#arrow" /></svg></a
+              ><button type="button" class="copy-brief" id="copy-brief">
+                Copy brief
+              </button>
+            </div>
+            <div class="intake-footnote">
+              <p id="privacy-note">
+                A short conversation with our AI project assistant. Please leave
+                out confidential information.
+              </p>
+              <details class="chat-privacy">
+                <summary>About your conversation</summary>
+                <p>
+                  Messages are processed by Cloudflare Workers AI to respond to
+                  your idea. This site does not save chat transcripts; the
+                  conversation stays in this tab and expires after 30 minutes.
+                  We keep limited usage records, including a daily protected
+                  identifier derived from your IP address, to prevent abuse.
+                  Nothing is emailed until you choose to send it from your email
+                  app.
+                </p>
+              </details>
+            </div>
+            <noscript
+              ><p class="chat-status">
+                The assistant needs JavaScript. You can describe your idea
+                directly to
+                <a href="mailto:hello@compascaribe.com"
+                  >hello@compascaribe.com</a
+                >.
+              </p></noscript
+            >
+            <a class="browse-link" href="#capabilities"
+              >Rather look around? Explore what we build
+              <span aria-hidden="true">↓</span></a
+            >
+          </div>
+        </div>
+      </section>
+      <section class="introduction section-pad" aria-labelledby="intro-title">
+        <p class="section-label">A different starting point</p>
+        <div class="intro-layout">
+          <h2 id="intro-title">You bring<br />the “what if”.</h2>
+          <div class="intro-body">
+            <p class="lead">We bring the ability to build it.</p>
+            <p>
+              A new product. A better way to run your business. A system that
+              connects everything you’ve outgrown. We design and engineer
+              software around your ambition, from the first conversation to the
+              details that make it work.
+            </p>
+            <p>There’s no preset shape your idea has to fit.</p>
+          </div>
+        </div>
+      </section>
+      <section
+        class="capabilities section-pad"
+        id="capabilities"
+        aria-labelledby="capabilities-title"
+      >
+        <div class="section-heading">
+          <p class="section-label">What we build</p>
+          <p class="section-aside">
+            From one essential tool<br />to your entire digital operation.
+          </p>
+        </div>
+        <div class="capability-layout">
+          <div class="capability-intro">
+            <h2 id="capabilities-title">
+              The right<br />software changes<br />what’s possible.
+            </h2>
+            <div class="system-art" aria-hidden="true">
+              <div class="system-orbit orbit-a"></div>
+              <div class="system-orbit orbit-b"></div>
+              <div class="system-center">
+                <svg><use href="#brand-mark" /></svg>
+              </div>
+              <span class="system-node node-a">Your customers</span
+              ><span class="system-node node-b">Your team</span
+              ><span class="system-node node-c">Your systems</span
+              ><span class="system-dot dot-a"></span
+              ><span class="system-dot dot-b"></span>
+              <p>Designed to work together.</p>
+            </div>
+          </div>
+          <div class="service-list">
+            <details name="services" open>
+              <summary>
+                <span>Bespoke applications</span
+                ><span class="disclosure-icon" aria-hidden="true"></span>
+              </summary>
+              <div class="service-content">
+                <p>
+                  The application your business actually needs. Customer
+                  experiences, internal tools, and entirely new products,
+                  designed around the people who use them.
+                </p>
+                <ul>
+                  <li>Web & mobile experiences</li>
+                  <li>Customer portals</li>
+                  <li>Business tools</li>
+                </ul>
+              </div>
+            </details>
+            <details name="services">
+              <summary>
+                <span>Platforms that scale</span
+                ><span class="disclosure-icon" aria-hidden="true"></span>
+              </summary>
+              <div class="service-content">
+                <p>
+                  Think beyond the first release. We build the foundations for
+                  complex products, with the architecture, permissions, and
+                  performance to support a growing business.
+                </p>
+                <ul>
+                  <li>Multi-tenant platforms</li>
+                  <li>Complex business systems</li>
+                  <li>Product architecture</li>
+                </ul>
+              </div>
+            </details>
+            <details name="services">
+              <summary>
+                <span>Connected operations</span
+                ><span class="disclosure-icon" aria-hidden="true"></span>
+              </summary>
+              <div class="service-content">
+                <p>
+                  Make the pieces work as one. Connect your tools, move
+                  information where it belongs, and replace repetitive handoffs
+                  with a workflow your team can rely on.
+                </p>
+                <ul>
+                  <li>Integrations & APIs</li>
+                  <li>Operational automation</li>
+                  <li>Data & reporting</li>
+                </ul>
+              </div>
+            </details>
+            <details name="services">
+              <summary>
+                <span>Intelligent workflows</span
+                ><span class="disclosure-icon" aria-hidden="true"></span>
+              </summary>
+              <div class="service-content">
+                <p>
+                  Software that can take the next step. Purpose-built AI
+                  assistants and agent workflows that work across your systems,
+                  with clear permissions and human review where it matters.
+                </p>
+                <ul>
+                  <li>Custom AI assistants</li>
+                  <li>Agent orchestration</li>
+                  <li>Knowledge systems</li>
+                </ul>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+      <section class="work section-pad" id="work" aria-labelledby="work-title">
+        <div class="section-heading">
+          <p class="section-label">Selected work</p>
+          <p class="section-aside">
+            Real businesses.<br />Specific challenges.
+          </p>
+        </div>
+        <h2 id="work-title">Ideas, put to work.</h2>
+        <div class="project-grid">
+          <article class="project">
+            <div class="project-visual visual-coordinador">
+              <span class="concept-label">Interface concept</span>
+              <div class="dispatch-window" aria-hidden="true">
+                <div class="dispatch-sidebar">
+                  <span class="app-logo">c.</span
+                  ><span class="side-icon active"></span
+                  ><span class="side-icon"></span><span class="side-icon"></span
+                  ><span class="side-icon"></span
+                  ><span class="sidebar-bottom"></span>
+                </div>
+                <div class="dispatch-main">
+                  <div class="app-topline">
+                    <span>Coordinador</span><span class="app-avatar">C</span>
+                  </div>
+                  <div class="app-heading">
+                    <strong>A clear view of the day.</strong
+                    ><span>Service operations</span>
+                  </div>
+                  <div class="dispatch-tabs">
+                    <span class="active">Dispatch</span><span>Work orders</span
+                    ><span>Team</span>
+                  </div>
+                  <div class="dispatch-board">
+                    <div class="board-column">
+                      <span>Scheduled</span>
+                      <div class="job">
+                        <em class="job-tag">Maintenance</em
+                        ><b>Cooling system service</b
+                        ><small>Site visit · Assigned</small>
+                        <div class="job-footer">
+                          <span class="mini-avatar">JL</span
+                          ><span>Morning</span>
+                        </div>
+                      </div>
+                      <div class="job ghost-job">
+                        <em class="job-tag">Inspection</em
+                        ><b>Equipment assessment</b
+                        ><small>Site visit · Assigned</small>
+                      </div>
+                    </div>
+                    <div class="board-column">
+                      <span>In progress</span>
+                      <div class="job">
+                        <em class="job-tag blue-tag">Repair</em
+                        ><b>Air handling unit</b
+                        ><small>Technician on site</small>
+                        <div class="job-progress"><i></i></div>
+                        <div class="job-footer">
+                          <span class="mini-avatar">MR</span
+                          ><span>In progress</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="floating-status" aria-hidden="true">
+                <span>✓</span>
+                <div>
+                  Everyone on the same page.<small
+                    >From the office to the field.</small
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="project-title">
+              <h3>Coordinador</h3>
+              <span>Field service platform</span>
+            </div>
+            <p>
+              Work orders, technician dispatch, client communication, and
+              service history. One connected operation for a commercial HVAC
+              business.
+            </p>
+            <details class="project-detail">
+              <summary>
+                Inside the project <span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                Built around the realities of field service: coordinating work
+                from the office, giving technicians the context they need, and
+                keeping a clear service history for each client.
+              </p>
+            </details>
+          </article>
+          <article class="project">
+            <div class="project-visual visual-gastro">
+              <span class="concept-label">Interface concept</span>
+              <div class="catalog-window" aria-hidden="true">
+                <div class="catalog-heading">
+                  <span class="gastro-logo">gastro<span>studio</span></span
+                  ><span>Product workspace</span>
+                </div>
+                <div class="catalog-product">
+                  <div class="product-art">
+                    <div class="plate plate-back"></div>
+                    <div class="plate plate-front"></div>
+                    <div class="herb herb-a"></div>
+                    <div class="herb herb-b"></div>
+                  </div>
+                  <div class="product-meta">
+                    <span>Table & kitchen</span
+                    ><strong>A single source<br />for every channel.</strong
+                    ><small>Catalog · Inventory · Pricing</small>
+                  </div>
+                </div>
+                <div class="channel-row">
+                  <span class="channel-source">Catalog</span
+                  ><span class="channel-connector"></span
+                  ><span class="channel-destination">Store</span
+                  ><span class="channel-destination">Social</span
+                  ><span class="channel-destination">Messaging</span>
+                </div>
+              </div>
+              <div class="catalog-note" aria-hidden="true">
+                <span class="status-dot"></span>One update. Every channel.
+              </div>
+            </div>
+            <div class="project-title">
+              <h3>Gastro Studio</h3>
+              <span>Commerce & publishing</span>
+            </div>
+            <p>
+              A central product catalog connected to the channels customers use.
+              Inventory, pricing, and availability kept in sync across the
+              business.
+            </p>
+            <details class="project-detail">
+              <summary>
+                Inside the project <span aria-hidden="true">+</span>
+              </summary>
+              <p>
+                Centralized product management in WooCommerce, with automated
+                distribution to Instagram, Facebook, and WhatsApp. A connected
+                publishing workflow that reduces repeated catalog updates.
+              </p>
+            </details>
+          </article>
+        </div>
+      </section>
+      <section
+        class="approach section-pad"
+        id="approach"
+        aria-labelledby="approach-title"
+      >
+        <div class="section-heading">
+          <p class="section-label">Our approach</p>
+          <p class="section-aside">
+            Close collaboration.<br />Clear direction.
+          </p>
+        </div>
+        <h2 id="approach-title">
+          From the first “what if”<br />to what comes next.
+        </h2>
+        <ol class="process-list">
+          <li>
+            <span class="process-step">01</span>
+            <h3>Find the real opportunity.</h3>
+            <p>
+              We get to know your business, your constraints, and what you want
+              to make possible. Together, we shape a clear path forward.
+            </p>
+          </li>
+          <li>
+            <span class="process-step">02</span>
+            <h3>Make it tangible.</h3>
+            <p>
+              Design, build, and refine with you. Working software gives us
+              something real to test, challenge, and improve along the way.
+            </p>
+          </li>
+          <li>
+            <span class="process-step">03</span>
+            <h3>Build for what’s next.</h3>
+            <p>
+              Launch with care. Learn from real use. Keep improving the product
+              as your business and your ambitions evolve.
+            </p>
+          </li>
+        </ol>
+      </section>
+      <section
+        class="contact section-pad"
+        id="contact"
+        aria-labelledby="contact-title"
+      >
+        <div class="contact-top">
+          <p class="section-label">There’s more within reach.</p>
+          <svg class="contact-mark" aria-hidden="true">
+            <use href="#brand-mark" />
+          </svg>
+        </div>
+        <h2 id="contact-title">What have you<br />got in mind?</h2>
+        <div class="contact-bottom">
+          <p>
+            A rough idea. A complicated challenge.<br />Something you’ve been
+            meaning to build.<br />That’s enough to start a conversation.
+          </p>
+          <a href="mailto:hello@compascaribe.com" class="contact-link"
+            >hello@compascaribe.com<svg aria-hidden="true">
+              <use href="#arrow" /></svg
+          ></a>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="footer-top">
+        <a href="#top" class="footer-home"
+          >Back to the top <span aria-hidden="true">↑</span></a
+        >
+        <p>Caribbean roots. A wider horizon.</p>
+        <p>© <span id="year">2026</span> Compás Caribe</p>
       </div>
-    </div>
-    <div class="container hero-content">
-      <h1 class="brand-title">Compás Caribe</h1>
-      <p class="hero-tagline">Navigate the vibes</p>
-      <p class="hero-description">We build custom software, simple websites, and AI agents for real operations.</p>
-      <div class="hero-actions">
-        <a href="mailto:hello@compascaribe.com" class="btn btn-primary">Talk to us</a>
-        <a href="#work" class="btn btn-secondary">See the work</a>
+      <div class="footer-wordmark" aria-hidden="true">
+        compás caribe<span>✳</span>
       </div>
-    </div>
-  </section>
-
-  <!-- What We Do -->
-  <section class="section" id="services">
-    <div class="container">
-      <h2 class="section-title">What we do</h2>
-      <div class="cards">
-        <div class="card">
-          <div class="card-icon">⚙️</div>
-          <h3 class="card-title">Custom Software</h3>
-          <p class="card-description">Operations tools, catalogs, service workflows — built to fit how you already work, not the other way around.</p>
-        </div>
-        <div class="card">
-          <div class="card-icon">🌐</div>
-          <h3 class="card-title">Sites & Presence</h3>
-          <p class="card-description">Fast, simple, reliable. Hosted on Cloudflare's global edge network for speed and resilience.</p>
-        </div>
-        <div class="card">
-          <div class="card-icon">🤖</div>
-          <h3 class="card-title">Bots & Agents</h3>
-          <p class="card-description">AI in your workflows — inbox automation, operations support, publishing pipelines, human-in-the-loop handoffs.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- How We Work -->
-  <section class="section section-alt" id="process">
-    <div class="container">
-      <h2 class="section-title">How we work</h2>
-      <div class="process-steps">
-        <div class="process-step">
-          <span class="process-number">1</span>
-          <h3 class="process-title">Scope</h3>
-          <p class="process-description">We start by understanding what you need and what already works.</p>
-        </div>
-        <div class="process-step">
-          <span class="process-number">2</span>
-          <h3 class="process-title">Build</h3>
-          <p class="process-description">We develop with AI in the loop — faster iteration, cleaner code.</p>
-        </div>
-        <div class="process-step">
-          <span class="process-number">3</span>
-          <h3 class="process-title">Ship</h3>
-          <p class="process-description">We deploy to production when it's ready, not before.</p>
-        </div>
-        <div class="process-step">
-          <span class="process-number">4</span>
-          <h3 class="process-title">Iterate</h3>
-          <p class="process-description">Real use reveals real needs — we refine based on how it actually works.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Selected Work -->
-  <section class="section" id="work">
-    <div class="container">
-      <h2 class="section-title">Selected work</h2>
-      <div class="work-items">
-        <div class="work-item">
-          <h3 class="work-title">Gastro Studio</h3>
-          <p class="work-description">Catalog operations and multi-channel publishing. Centralized product management in WooCommerce with automated distribution to Instagram, Facebook, and WhatsApp — keeping inventory, pricing, and availability in sync across channels.</p>
-        </div>
-        <div class="work-item">
-          <h3 class="work-title">Coordinador</h3>
-          <p class="work-description">Commercial HVAC service operations platform. Work order management, technician dispatch, client communication, and service history tracking — designed for how field service businesses actually operate.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Who It's For -->
-  <section class="section section-alt" id="who">
-    <div class="container container-narrow">
-      <h2 class="section-title">Who it's for</h2>
-      <p class="section-text">
-        Operators and owners who need software that fits how they already work. You're not looking for enterprise platforms or VC-backed SaaS — you need something built for your business, not someone else's vision of it. We build tools that solve real problems without requiring you to change your entire operation.
-      </p>
-    </div>
-  </section>
-
-  <!-- Contact -->
-  <section class="section section-contact" id="contact">
-    <div class="container container-narrow">
-      <h2 class="section-title">Let's talk</h2>
-      <p class="contact-description">Ready to start a project or just want to chat about what's possible?</p>
-      <a href="mailto:hello@compascaribe.com" class="contact-email">hello@compascaribe.com</a>
-      <p class="contact-note">We'll respond within 24 hours. WhatsApp available on request.</p>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <p class="footer-text">© 2026 Compás Caribe. Caribbean-based, globally connected.</p>
-    </div>
-  </footer>
-
-  <script type="module" src="/src/main.js"></script>
-</body>
+    </footer>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>

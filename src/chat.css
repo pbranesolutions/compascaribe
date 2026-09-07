@@ -1,0 +1,477 @@
+[hidden] {
+  display: none !important;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.conversation-hero.hero {
+  height: auto;
+  min-height: 100svh;
+}
+.conversation-hero .hero-stage {
+  height: auto;
+  min-height: 100svh;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 120px var(--gutter) 45px;
+}
+.conversation-hero .hero-grid {
+  background-size: 20% 100%;
+  opacity: 0.55;
+}
+.conversation-hero .sculpture {
+  width: 630px;
+  height: 590px;
+  top: auto;
+  bottom: -220px;
+  right: -210px;
+  opacity: 0.17;
+  z-index: -1;
+}
+.conversation-hero .bearing {
+  width: 440px;
+  height: 440px;
+}
+.intake-shell {
+  position: relative;
+  width: 100%;
+  max-width: 740px;
+  margin: 0 auto;
+  text-align: center;
+}
+.intake-intro {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+.intake-intro svg {
+  width: 20px;
+  height: 20px;
+  color: var(--blue);
+}
+.intake-heading h1 {
+  font-size: clamp(58px, 5.4vw, 80px);
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+}
+.intake-description {
+  font-size: 14px;
+  line-height: 1.85;
+  color: #4e6874;
+  margin: 16px auto 22px;
+}
+.idea-form {
+  text-align: left;
+  background: #fff;
+  border: 1px solid #bdcdd7;
+  border-radius: 22px;
+  padding: 23px 25px 17px;
+  box-shadow: 0 12px 45px #16364d0b;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.idea-form:focus-within {
+  border-color: var(--blue);
+  box-shadow:
+    0 8px 45px #395ce814,
+    0 0 0 3px #395ce810;
+}
+.idea-form textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 64px;
+  max-height: 190px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font:
+    400 19px/1.65 Outfit,
+    Arial,
+    sans-serif;
+  color: var(--ink);
+  padding: 0;
+}
+.idea-form textarea::placeholder {
+  color: #718791;
+}
+.idea-form textarea:disabled {
+  opacity: 0.65;
+}
+.composer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-top: 8px;
+}
+.composer-footer > span {
+  font-size: 11px;
+  color: #607885;
+}
+.composer-footer .button {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 12px 19px;
+}
+.composer-footer .button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.button:focus-visible,
+button:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 4px;
+}
+.idea-form textarea:focus-visible {
+  outline: none;
+}
+.form-trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.chat-status {
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: left;
+  color: #365566;
+  margin: 12px 0 0;
+  min-height: 0;
+}
+.chat-status:empty {
+  display: none;
+}
+.idea-suggestions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 19px;
+}
+.idea-suggestions button {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid #bdccd4;
+  background: transparent;
+  border-radius: 24px;
+  padding: 9px 13px;
+  font:
+    500 10px/1.5 Manrope,
+    Arial,
+    sans-serif;
+  color: #395767;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.idea-suggestions button:hover {
+  background: white;
+  border-color: #8ca4b7;
+}
+.idea-suggestions button span {
+  font-size: 15px;
+}
+.intake-footnote {
+  margin: 21px auto 0;
+  font-size: 10px;
+  color: #607581;
+  max-width: 620px;
+  line-height: 1.7;
+}
+.chat-privacy {
+  font-size: 10px;
+  margin-top: 5px;
+}
+.chat-privacy summary {
+  display: inline-block;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.chat-privacy p {
+  max-width: 590px;
+  margin: 10px auto;
+  padding: 13px;
+  background: #ffffff80;
+  border-radius: 8px;
+}
+.browse-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 17px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 34px;
+  padding: 7px 0;
+}
+.browse-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.is-active .intake-heading h1 {
+  font-size: 42px;
+  line-height: 1.12;
+}
+.is-active .intake-heading h1 br {
+  display: none;
+}
+.is-active .intake-intro {
+  margin-bottom: 13px;
+}
+.is-active .intake-description {
+  display: none;
+}
+.is-active .hero-stage {
+  align-items: flex-start;
+  padding-top: 145px;
+}
+.conversation {
+  margin: 28px 0 18px;
+  text-align: left;
+}
+.conversation-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #577382;
+  padding: 0 2px 13px;
+  border-bottom: 1px solid #bccdd6;
+}
+.assistant-status {
+  width: 6px;
+  height: 6px;
+  background: #397a74;
+  border-radius: 50%;
+}
+.conversation-kind {
+  margin-left: auto;
+  font-size: 9px;
+  color: #68828f;
+}
+.chat-log {
+  max-height: 365px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 7px 5px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #b4c6cf transparent;
+}
+.chat-message {
+  max-width: 94%;
+  margin-bottom: 23px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.message-role {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #4e6874;
+  margin-bottom: 6px;
+}
+.chat-message p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.from-visitor {
+  margin-left: auto;
+  background: #dfe8f0;
+  border-radius: 15px 15px 3px 15px;
+  padding: 13px 18px;
+  font-size: 13px;
+  width: fit-content;
+}
+.from-assistant {
+  padding: 0 8px 0 1px;
+}
+.from-assistant .message-role {
+  color: var(--blue);
+}
+.is-active .idea-form {
+  padding: 17px 20px 15px;
+  border-radius: 16px;
+}
+.is-active .idea-form textarea {
+  font-size: 16px;
+  min-height: 52px;
+}
+.is-active .composer-footer > span {
+  font-size: 10px;
+}
+.brief-handoff {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  text-align: left;
+  margin-top: 23px;
+  padding: 20px 0 0;
+  border-top: 1px solid #bdcdd7;
+  flex-wrap: wrap;
+}
+.brief-handoff > div {
+  margin-right: auto;
+}
+.brief-handoff strong {
+  font:
+    400 22px/1.3 Outfit,
+    Arial,
+    sans-serif;
+  letter-spacing: -0.03em;
+}
+.brief-handoff p {
+  font-size: 11px;
+  color: #587380;
+  margin-top: 4px;
+}
+.brief-handoff .button {
+  font-size: 11px;
+  padding: 11px 17px;
+  gap: 15px;
+}
+.copy-brief {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid #839ba7;
+  padding: 4px 0;
+  font:
+    600 10px Manrope,
+    Arial,
+    sans-serif;
+  color: #3f5a69;
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .conversation-hero .hero-stage {
+    min-height: 100svh;
+    padding: 132px 22px 55px;
+  }
+  .intake-heading h1 {
+    font-size: clamp(38px, 12vw, 75px);
+  }
+  .intake-intro {
+    font-size: 10px;
+    margin-bottom: 24px;
+  }
+  .intake-description {
+    font-size: 12px;
+    margin: 20px 0 28px;
+  }
+  .intake-description br {
+    display: none;
+  }
+  .idea-form {
+    padding: 19px 17px 15px;
+    border-radius: 17px;
+  }
+  .idea-form textarea {
+    font-size: 18px;
+    min-height: 90px;
+  }
+  .composer-footer {
+    gap: 10px;
+  }
+  .composer-footer > span {
+    font-size: 9px;
+  }
+  .composer-footer .button {
+    white-space: nowrap;
+    font-size: 10px;
+    padding: 11px 13px;
+    gap: 11px;
+  }
+  .idea-suggestions {
+    gap: 7px;
+    justify-content: flex-start;
+    margin-top: 16px;
+  }
+  .idea-suggestions button {
+    font-size: 9px;
+    padding: 7px 10px;
+    gap: 9px;
+  }
+  .intake-footnote {
+    font-size: 9px;
+    text-align: left;
+    margin-top: 21px;
+  }
+  .chat-privacy {
+    font-size: 9px;
+  }
+  .browse-link {
+    font-size: 10px;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .conversation-hero .sculpture {
+    bottom: -240px;
+    right: -330px;
+  }
+  .is-active .hero-stage {
+    padding-top: 112px;
+  }
+  .is-active .intake-heading h1 {
+    font-size: 34px;
+  }
+  .is-active .intake-heading h1 br {
+    display: block;
+  }
+  .conversation-kind {
+    display: none;
+  }
+  .conversation {
+    margin-top: 22px;
+  }
+  .chat-log {
+    max-height: 330px;
+  }
+  .chat-message {
+    font-size: 13px;
+    max-width: 97%;
+  }
+  .from-visitor {
+    font-size: 12px;
+    padding: 11px 13px;
+  }
+  .brief-handoff {
+    gap: 14px;
+  }
+  .brief-handoff > div {
+    flex-basis: 100%;
+  }
+  .brief-handoff strong {
+    font-size: 23px;
+  }
+  .is-active .intake-footnote {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .conversation-hero .hero-stage {
+    position: relative;
+  }
+  .idea-form,
+  .idea-suggestions button {
+    transition: none;
+  }
+}

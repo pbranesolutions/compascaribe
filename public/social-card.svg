@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <style>@font-face{font-family:Outfit;src:url('/fonts/outfit-latin.woff2')}text{font-family:Outfit,Arial,sans-serif}</style>
+    <linearGradient id="metal" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#7894b9"/><stop offset=".24" stop-color="#faffff"/><stop offset=".45" stop-color="#adc2d9"/><stop offset=".67" stop-color="#365674"/><stop offset=".86" stop-color="#d5edf2"/><stop offset="1" stop-color="#faffff"/></linearGradient>
+    <linearGradient id="blue" x1="0" x2="1" y1="1" y2="0"><stop stop-color="#172d91"/><stop offset=".4" stop-color="#5679f6"/><stop offset=".65" stop-color="#b9d0ff"/><stop offset="1" stop-color="#2242b8"/></linearGradient>
+  </defs>
+  <path fill="#edf2f5" d="M0 0h1200v630H0z"/>
+  <g fill="#395ce8" transform="translate(60 55)"><path d="m22 0 6 16 16 6-16 6-6 16-6-16L0 22l16-6Z"/><circle cx="22" cy="22" r="5" fill="#edf2f5"/></g>
+  <text x="118" y="77" font-size="30" letter-spacing="-1.5" fill="#14313b">compás caribe</text>
+  <text x="60" y="202" font-size="16" fill="#14313b">Ambitious ideas. Exceptional software.</text>
+  <text x="55" y="301" font-size="86" letter-spacing="-5" fill="#14313b">What’s next</text>
+  <text x="55" y="389" font-size="86" letter-spacing="-5" fill="#14313b">is yours to build.</text>
+  <g transform="translate(945 314) rotate(-24)"><ellipse rx="202" ry="224" fill="none" stroke="#bacbd4" stroke-width=".7"/><ellipse rx="176" ry="110" fill="none" stroke="#6684a5" stroke-width="47" transform="translate(0 9)"/><ellipse rx="176" ry="110" fill="none" stroke="url(#metal)" stroke-width="47"/><ellipse rx="80" ry="157" fill="none" stroke="url(#blue)" stroke-width="36" transform="rotate(20)"/><ellipse rx="71" ry="46" fill="none" stroke="url(#metal)" stroke-width="23" transform="rotate(20)"/><path d="m0-27 7 20 20 7-20 7-7 20-7-20-20-7 20-7Z" fill="#395ce8"/><circle r="5" fill="#edf2f5"/></g>
+  <text x="60" y="559" font-size="17" fill="#4e6874">Bespoke applications. Ambitious platforms. Connected systems.</text>
+  <text x="1138" y="559" font-size="15" text-anchor="end" fill="#14313b">compascaribe.com</text>
+</svg>
