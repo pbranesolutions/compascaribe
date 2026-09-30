@@ -625,7 +625,10 @@ function renderQuestion() {
     const open = ownPanel.hidden
     ownPanel.hidden = !open
     ownToggle.setAttribute('aria-expanded', open ? 'true' : 'false')
-    if (open) ownInput.focus()
+    if (open) {
+      ownInput.focus({ preventScroll: true })
+      ownPanel.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
+    }
   })
   ownPanel.querySelector('#use-own').addEventListener('click', () => {
     const text = ownInput.value.trim()

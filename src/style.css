@@ -658,6 +658,7 @@ h1 {
   flex-direction: column;
   align-items: flex-start;
   gap: 0.55rem;
+  scroll-margin: 5.5rem;
 }
 
 .own-panel textarea {
