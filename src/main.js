@@ -469,6 +469,7 @@ function showCompose() {
   window.clearTimeout(timer)
   lock = false
   state = null
+  document.body.classList.remove('is-working')
   stage.classList.remove('is-channel')
   stage.innerHTML = composeSnapshot
   bindCompose()
@@ -488,6 +489,7 @@ function startChannel(text) {
     answers: [],
     pending: scenarios[scenarioId].pending.map((item) => ({ ...item, options: [...item.options] }))
   }
+  document.body.classList.add('is-working')
   stage.classList.add('is-channel')
   render()
   scrollToStage()
