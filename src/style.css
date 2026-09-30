@@ -34,7 +34,8 @@ html {
 body {
   margin: 0;
   min-height: 100svh;
-  background: var(--void);
+  background:
+    radial-gradient(ellipse 58% 48% at 50% 42%, #3a1c16 0%, #140c0a 46%, var(--void) 72%);
   color: var(--blush);
   font-family: var(--sans);
   font-size: 1.0625rem;
@@ -49,24 +50,25 @@ body::after {
   z-index: 0;
   border-radius: 50%;
   pointer-events: none;
-  filter: blur(70px);
+  filter: blur(46px);
+  transition: opacity 0.45s ease;
 }
 
 body::before {
-  width: min(78vw, 52rem);
-  height: min(58vw, 38rem);
-  left: 12%;
-  top: 16%;
-  background: radial-gradient(circle, rgba(255, 146, 96, 0.28), rgba(120, 28, 22, 0.05) 58%, transparent 72%);
+  width: min(70vw, 46rem);
+  height: min(52vw, 34rem);
+  left: 18%;
+  top: 14%;
+  background: radial-gradient(circle, rgba(255, 132, 78, 0.5), rgba(150, 36, 28, 0.16) 48%, transparent 70%);
   animation: breath 12s ease-in-out infinite;
 }
 
 body::after {
-  width: min(46vw, 32rem);
-  height: min(46vw, 32rem);
-  right: 4%;
-  bottom: 6%;
-  background: radial-gradient(circle, rgba(168, 42, 36, 0.2), transparent 68%);
+  width: min(38vw, 26rem);
+  height: min(34vw, 22rem);
+  right: 16%;
+  top: 30%;
+  background: radial-gradient(circle, rgba(255, 86, 64, 0.32), transparent 64%);
   animation: breath 15s ease-in-out infinite reverse;
 }
 
@@ -190,12 +192,21 @@ h1 {
   font-family: var(--display);
   font-style: italic;
   font-weight: 500;
-  font-size: clamp(3.15rem, 8.4vw, 7.4rem);
-  line-height: 0.86;
-  letter-spacing: -0.035em;
+  font-size: clamp(3.35rem, 7.2vw, 6.6rem);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
   text-wrap: balance;
-  max-width: 11ch;
+  max-width: 14ch;
   color: var(--blush);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .compose h1 {
+    background-image: linear-gradient(185deg, #fff8f3 8%, #f4cbb8 62%, #e7a88e 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 
 #composer {
@@ -211,7 +222,7 @@ h1 {
   gap: 0.35rem;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgba(247, 239, 232, 0.42);
+  border-bottom: 1px solid rgba(255, 196, 164, 0.72);
   padding: 0 0 0.15rem;
 }
 
@@ -261,7 +272,7 @@ h1 {
   border-top: 1.5px solid currentColor;
   border-right: 1.5px solid currentColor;
   transform: rotate(45deg) translate(-1px, 1px);
-  opacity: 0.45;
+  opacity: 0.72;
 }
 
 .composer:focus-within .send::before,
@@ -820,8 +831,8 @@ h1 {
 
   #stage,
   .choice,
-  body.is-working::before,
-  body.is-working::after {
+  body::before,
+  body::after {
     transition: none;
   }
 
