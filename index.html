@@ -1,146 +1,187 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compás Caribe — Custom Software, Sites & AI Agents</title>
-  <meta name="description" content="We build custom software, simple websites, and AI agents for real operations. Caribbean-based, globally connected.">
-  <meta property="og:title" content="Compás Caribe — Custom Software, Sites & AI Agents">
-  <meta property="og:description" content="We build custom software, simple websites, and AI agents for real operations.">
+  <title>Compás Caribe — ¿Qué te gustaría que funcionara mejor?</title>
+  <meta name="description" content="Cuéntanos el problema. Empezamos desde ahí. Compás Caribe construye aplicaciones a la medida con clientes en República Dominicana.">
+  <meta property="og:title" content="Compás Caribe">
+  <meta property="og:description" content="Cuéntanos el problema. Empezamos desde ahí.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://compascaribe.com">
-  <meta name="theme-color" content="#0a1628">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+  <meta name="theme-color" content="#efe6d4">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ef4e22'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%2316140f' stroke-width='1.6'/%3E%3Cpath d='M16 7.2 18.3 16 16 13.6 13.7 16Z' fill='%2316140f'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Hero Section -->
-  <section class="hero" id="hero">
-    <div class="hero-background">
-      <div class="ocean-gradient"></div>
-      <div class="compass-watermark" aria-hidden="true">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="100" cy="100" r="90" stroke="currentColor" fill="none" stroke-width="1" opacity="0.3"/>
-          <circle cx="100" cy="100" r="70" stroke="currentColor" fill="none" stroke-width="1" opacity="0.2"/>
-          <line x1="100" y1="20" x2="100" y2="180" stroke="currentColor" stroke-width="1" opacity="0.2"/>
-          <line x1="20" y1="100" x2="180" y2="100" stroke="currentColor" stroke-width="1" opacity="0.2"/>
-          <path d="M 100 30 L 110 100 L 100 70 L 90 100 Z" fill="currentColor" opacity="0.4"/>
-          <text x="100" y="15" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">N</text>
-          <text x="100" y="195" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">S</text>
-          <text x="190" y="105" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">E</text>
-          <text x="10" y="105" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.5">W</text>
-        </svg>
-      </div>
-    </div>
-    <div class="container hero-content">
-      <h1 class="brand-title">Compás Caribe</h1>
-      <p class="hero-tagline">Navigate the vibes</p>
-      <p class="hero-description">We build custom software, simple websites, and AI agents for real operations.</p>
-      <div class="hero-actions">
-        <a href="mailto:hello@compascaribe.com" class="btn btn-primary">Talk to us</a>
-        <a href="#work" class="btn btn-secondary">See the work</a>
-      </div>
-    </div>
-  </section>
+  <a class="skip" href="#stage">Saltar al inicio</a>
 
-  <!-- What We Do -->
-  <section class="section" id="services">
-    <div class="container">
-      <h2 class="section-title">What we do</h2>
-      <div class="cards">
-        <div class="card">
-          <div class="card-icon">⚙️</div>
-          <h3 class="card-title">Custom Software</h3>
-          <p class="card-description">Operations tools, catalogs, service workflows — built to fit how you already work, not the other way around.</p>
-        </div>
-        <div class="card">
-          <div class="card-icon">🌐</div>
-          <h3 class="card-title">Sites & Presence</h3>
-          <p class="card-description">Fast, simple, reliable. Hosted on Cloudflare's global edge network for speed and resilience.</p>
-        </div>
-        <div class="card">
-          <div class="card-icon">🤖</div>
-          <h3 class="card-title">Bots & Agents</h3>
-          <p class="card-description">AI in your workflows — inbox automation, operations support, publishing pipelines, human-in-the-loop handoffs.</p>
+  <header class="site-header">
+    <a class="brand" href="#stage" id="brand">
+      <svg class="mark" viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
+        <circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M16 6.5 18.4 16 16 13.8 13.6 16Z" fill="currentColor"/>
+      </svg>
+      Compás Caribe
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <ul>
+        <li><a href="#como-funciona">Cómo funciona</a></li>
+        <li><a href="#proyectos">Proyectos</a></li>
+        <li><a href="#nosotros">Nosotros</a></li>
+      </ul>
+    </nav>
+    <button type="button" class="login" id="login-open">Iniciar sesión</button>
+  </header>
+
+  <main>
+    <section id="stage" aria-labelledby="page-title">
+      <div class="compose">
+        <p class="lede">Cuéntanos el problema. Empezamos desde ahí.</p>
+        <h1 id="page-title">¿Qué te gustaría que funcionara mejor?</h1>
+        <form id="composer" action="#stage" method="get">
+          <label class="sr-only" for="problem">Describe un problema, una frustración, una oportunidad o una idea</label>
+          <div class="composer">
+            <textarea id="problem" name="problem" rows="4" maxlength="800" lang="es" placeholder="Puedes empezar sin tener la aplicación clara." aria-describedby="hint"></textarea>
+            <div class="composer-foot">
+              <p id="hint">Un problema, una frustración, una oportunidad o una idea.</p>
+              <button type="submit" class="btn">Empezar</button>
+            </div>
+          </div>
+          <p id="composer-error" class="error" hidden></p>
+        </form>
+        <div class="prompts">
+          <button type="button" class="prompt" data-fill="Pierdo demasiado tiempo coordinando mi equipo.">Pierdo demasiado tiempo coordinando mi equipo.</button>
+          <button type="button" class="prompt" data-fill="Quiero automatizar algo que hacemos manualmente.">Quiero automatizar algo que hacemos manualmente.</button>
+          <button type="button" class="prompt" data-fill="Tengo una idea para una aplicación.">Tengo una idea para una aplicación.</button>
+          <button type="button" class="prompt" data-fill="Hay una oportunidad en mi industria que nadie está aprovechando.">Hay una oportunidad en mi industria que nadie está aprovechando.</button>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- How We Work -->
-  <section class="section section-alt" id="process">
-    <div class="container">
-      <h2 class="section-title">How we work</h2>
-      <div class="process-steps">
-        <div class="process-step">
-          <span class="process-number">1</span>
-          <h3 class="process-title">Scope</h3>
-          <p class="process-description">We start by understanding what you need and what already works.</p>
-        </div>
-        <div class="process-step">
-          <span class="process-number">2</span>
-          <h3 class="process-title">Build</h3>
-          <p class="process-description">We develop with AI in the loop — faster iteration, cleaner code.</p>
-        </div>
-        <div class="process-step">
-          <span class="process-number">3</span>
-          <h3 class="process-title">Ship</h3>
-          <p class="process-description">We deploy to production when it's ready, not before.</p>
-        </div>
-        <div class="process-step">
-          <span class="process-number">4</span>
-          <h3 class="process-title">Iterate</h3>
-          <p class="process-description">Real use reveals real needs — we refine based on how it actually works.</p>
-        </div>
+    <section class="block" id="como-funciona" aria-labelledby="como-title">
+      <p class="kicker">Cómo funciona</p>
+      <h2 id="como-title">Un ciclo. No una lista que termina.</h2>
+      <ol class="cycle">
+        <li>
+          <span class="step">01</span>
+          <h3>Tú decides</h3>
+          <p>Aclaramos qué tiene que pasar.</p>
+        </li>
+        <li>
+          <span class="step">02</span>
+          <h3>Decision Channel lo define</h3>
+          <p>Esas decisiones se vuelven la definición del proyecto.</p>
+        </li>
+        <li>
+          <span class="step">03</span>
+          <h3>Nosotros construimos</h3>
+          <p>La aplicación sigue lo que ya quedó decidido.</p>
+        </li>
+        <li>
+          <span class="step">04</span>
+          <h3>Seguimos decidiendo</h3>
+          <p>Lo que cambia en el canal, cambia en el software.</p>
+        </li>
+      </ol>
+      <p class="cycle-note">El canal no se cierra. Lo construido vuelve a discutirse.</p>
+    </section>
+
+    <section class="block" id="proyectos" aria-labelledby="proyectos-title">
+      <p class="kicker">Proyectos</p>
+      <h2 id="proyectos-title">Se puede empezar desde algo desordenado.</h2>
+      <div class="cases">
+        <figure class="case">
+          <blockquote>
+            <p>Necesito saber qué técnicos realmente están disponibles antes de asignar un trabajo.</p>
+          </blockquote>
+          <p class="becomes">Se convierte en</p>
+          <div class="sketch" aria-hidden="true">
+            <div class="sketch-top"><span>Asignación</span><span class="sketch-tag">Boceto</span></div>
+            <ul class="sketch-list">
+              <li><span>Luis</span><span class="ok">Disponible</span></li>
+              <li><span>Ana</span><span>En un trabajo</span></li>
+              <li><span>Carlos</span><span class="ok">Disponible</span></li>
+            </ul>
+            <div class="sketch-job"><span>Mantenimiento · Piantini</span><span class="sketch-tag">Sin asignar</span></div>
+          </div>
+          <figcaption>
+            <p>Ver quién está libre y asignar desde ahí.</p>
+            <button type="button" class="linkish" data-start="Necesito saber qué técnicos realmente están disponibles antes de asignar un trabajo.">Empezar desde aquí</button>
+          </figcaption>
+        </figure>
+
+        <figure class="case">
+          <blockquote>
+            <p>Mis clientes hacen sus pedidos por WhatsApp y después tenemos que copiar todo manualmente.</p>
+          </blockquote>
+          <p class="becomes">Se convierte en</p>
+          <div class="sketch" aria-hidden="true">
+            <p class="bubble">Hola, 2 libras de yuca y 1 pollo. Me lo llevas a Gazcue.</p>
+            <div class="sketch-top"><span>Pedido</span><span class="sketch-tag">Listo</span></div>
+            <ul class="sketch-list">
+              <li><span>Yuca</span><span>2 lb</span></li>
+              <li><span>Pollo</span><span>1</span></li>
+              <li><span>Entrega</span><span>Gazcue</span></li>
+            </ul>
+          </div>
+          <figcaption>
+            <p>El mensaje queda como un pedido. Nadie lo vuelve a escribir.</p>
+            <button type="button" class="linkish" data-start="Mis clientes hacen sus pedidos por WhatsApp y después tenemos que copiar todo manualmente.">Empezar desde aquí</button>
+          </figcaption>
+        </figure>
+
+        <figure class="case">
+          <blockquote>
+            <p>Tengo una idea, pero todavía no sé exactamente cómo debería funcionar.</p>
+          </blockquote>
+          <p class="becomes">Se convierte en</p>
+          <div class="sketch sketch-sparse" aria-hidden="true">
+            <div class="sketch-top"><span>Primer uso</span><span class="sketch-tag">Abierto</span></div>
+            <p class="sketch-quiet">El resto puede esperar. Esto ya es un comienzo.</p>
+            <span class="sketch-line"></span>
+            <span class="sketch-line short"></span>
+          </div>
+          <figcaption>
+            <p>Definir el primer uso, con lo demás todavía abierto.</p>
+            <button type="button" class="linkish" data-start="Tengo una idea, pero todavía no sé exactamente cómo debería funcionar.">Empezar desde aquí</button>
+          </figcaption>
+        </figure>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Selected Work -->
-  <section class="section" id="work">
-    <div class="container">
-      <h2 class="section-title">Selected work</h2>
-      <div class="work-items">
-        <div class="work-item">
-          <h3 class="work-title">Gastro Studio</h3>
-          <p class="work-description">Catalog operations and multi-channel publishing. Centralized product management in WooCommerce with automated distribution to Instagram, Facebook, and WhatsApp — keeping inventory, pricing, and availability in sync across channels.</p>
-        </div>
-        <div class="work-item">
-          <h3 class="work-title">Coordinador</h3>
-          <p class="work-description">Commercial HVAC service operations platform. Work order management, technician dispatch, client communication, and service history tracking — designed for how field service businesses actually operate.</p>
-        </div>
+    <section class="block" id="nosotros" aria-labelledby="nosotros-title">
+      <p class="kicker">Nosotros</p>
+      <h2 id="nosotros-title">Compás Caribe</h2>
+      <div class="about">
+        <p>Construimos aplicaciones a la medida con clientes en República Dominicana.</p>
+        <p>No hace falta saber cómo se hace el software. Hace falta saber qué quieres lograr. Decision Channel es donde eso se define. Nosotros lo construimos.</p>
       </div>
-    </div>
-  </section>
+    </section>
+  </main>
 
-  <!-- Who It's For -->
-  <section class="section section-alt" id="who">
-    <div class="container container-narrow">
-      <h2 class="section-title">Who it's for</h2>
-      <p class="section-text">
-        Operators and owners who need software that fits how they already work. You're not looking for enterprise platforms or VC-backed SaaS — you need something built for your business, not someone else's vision of it. We build tools that solve real problems without requiring you to change your entire operation.
-      </p>
-    </div>
-  </section>
-
-  <!-- Contact -->
-  <section class="section section-contact" id="contact">
-    <div class="container container-narrow">
-      <h2 class="section-title">Let's talk</h2>
-      <p class="contact-description">Ready to start a project or just want to chat about what's possible?</p>
-      <a href="mailto:hello@compascaribe.com" class="contact-email">hello@compascaribe.com</a>
-      <p class="contact-note">We'll respond within 24 hours. WhatsApp available on request.</p>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <p class="footer-text">© 2026 Compás Caribe. Caribbean-based, globally connected.</p>
-    </div>
+  <footer class="site-footer">
+    <p>Compás Caribe · República Dominicana</p>
+    <a href="mailto:hello@compascaribe.com">hello@compascaribe.com</a>
   </footer>
+
+  <div id="live" class="sr-only" aria-live="polite"></div>
+
+  <dialog id="login-dialog" closedby="any" aria-labelledby="login-title">
+    <form method="dialog">
+      <h2 id="login-title">Iniciar sesión</h2>
+      <p>Para clientes que ya tienen un Decision Channel.</p>
+      <label for="login-email">Correo</label>
+      <input id="login-email" type="email" inputmode="email" autocomplete="email" lang="es">
+      <p id="login-note" class="note" hidden>Este prototipo no inicia sesión. En el producto, aquí volverías a tu canal.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="login-enter">Entrar</button>
+        <button type="submit" class="btn ghost" value="close">Cerrar</button>
+      </div>
+    </form>
+  </dialog>
 
   <script type="module" src="/src/main.js"></script>
 </body>
