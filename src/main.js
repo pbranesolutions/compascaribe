@@ -453,7 +453,10 @@ function bindCompose() {
   const form = stage.querySelector('#composer')
   const area = stage.querySelector('#problem')
   if (!form || !area) return
-  area.addEventListener('input', clearError)
+  area.addEventListener('input', () => {
+    clearError()
+    document.body.classList.toggle('is-saying', area.value.trim().length > 0)
+  })
   let lastCompositionEndAt = null
   area.addEventListener('compositionend', (event) => {
     lastCompositionEndAt = event.timeStamp
@@ -483,7 +486,7 @@ function showCompose() {
   window.clearTimeout(timer)
   lock = false
   state = null
-  document.body.classList.remove('is-working')
+  document.body.classList.remove('is-working', 'is-saying')
   stage.classList.remove('is-channel')
   stage.innerHTML = composeSnapshot
   bindCompose()
@@ -503,6 +506,7 @@ function startChannel(text) {
     answers: [],
     pending: scenarios[scenarioId].pending.map((item) => ({ ...item, options: [...item.options] }))
   }
+  document.body.classList.remove('is-saying')
   document.body.classList.add('is-working')
   stage.classList.add('is-channel')
   render()
