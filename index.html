@@ -4,184 +4,57 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Compás Caribe — ¿Qué te gustaría que funcionara mejor?</title>
-  <meta name="description" content="Cuéntanos el problema. Empezamos desde ahí. Compás Caribe construye aplicaciones a la medida con clientes en República Dominicana.">
+  <meta name="description" content="¿Qué te gustaría que funcionara mejor? Compás Caribe construye aplicaciones a la medida con clientes en República Dominicana.">
   <meta property="og:title" content="Compás Caribe">
-  <meta property="og:description" content="Cuéntanos el problema. Empezamos desde ahí.">
+  <meta property="og:description" content="¿Qué te gustaría que funcionara mejor?">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://compascaribe.com">
-  <meta name="theme-color" content="#efe6d4">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ef4e22'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%2316140f' stroke-width='1.6'/%3E%3Cpath d='M16 7.2 18.3 16 16 13.6 13.7 16Z' fill='%2316140f'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#12182a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230c0908'/%3E%3Ccircle cx='16' cy='16' r='8' fill='none' stroke='%23f7efe8' stroke-width='1.2'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&family=DM+Mono:wght@400;500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 </head>
 <body>
-  <a class="skip" href="#stage">Saltar al inicio</a>
+  <a class="skip" href="#problem">Saltar a la respuesta</a>
 
-  <header class="site-header">
-    <a class="brand" href="#stage" id="brand">
-      <svg class="mark" viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
-        <circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="1.4"/>
-        <path d="M16 6.5 18.4 16 16 13.8 13.6 16Z" fill="currentColor"/>
+  <div class="vista" aria-hidden="true">
+    <div class="sky"></div>
+    <div class="sea"></div>
+    <div class="beach"></div>
+    <div class="festoon">
+      <svg class="wire" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+        <path vector-effect="non-scaling-stroke" d="M-2 10 C 4 12, 10 36, 16 34 S 24 18, 28 24 S 34 52, 39 48 S 46 30, 51 36 S 58 58, 63 52 S 70 20, 75 26 S 82 50, 86 44 S 92 12, 102 10" fill="none" stroke="#6b5344" stroke-width="1.7" stroke-linecap="round"/>
       </svg>
-      Compás Caribe
-    </a>
-    <nav class="nav" aria-label="Principal">
-      <ul>
-        <li><a href="#como-funciona">Cómo funciona</a></li>
-        <li><a href="#proyectos">Proyectos</a></li>
-        <li><a href="#nosotros">Nosotros</a></li>
-      </ul>
-    </nav>
-    <button type="button" class="login" id="login-open">Iniciar sesión</button>
-  </header>
+      <span class="bulb"></span>
+      <span class="bulb"></span>
+      <span class="bulb rose"></span>
+      <span class="bulb"></span>
+      <span class="bulb moon"></span>
+      <span class="bulb"></span>
+      <span class="bulb rose"></span>
+      <span class="bulb"></span>
+      <span class="bulb moon"></span>
+    </div>
+  </div>
 
   <main>
     <section id="stage" aria-labelledby="page-title">
       <div class="compose">
-        <p class="lede">Cuéntanos el problema. Empezamos desde ahí.</p>
         <h1 id="page-title">¿Qué te gustaría que funcionara mejor?</h1>
         <form id="composer" action="#stage" method="get">
-          <label class="sr-only" for="problem">Describe un problema, una frustración, una oportunidad o una idea</label>
+          <label class="sr-only" for="problem">Tu respuesta</label>
           <div class="composer">
-            <textarea id="problem" name="problem" rows="4" maxlength="800" lang="es" placeholder="Puedes empezar sin tener la aplicación clara." aria-describedby="hint"></textarea>
-            <div class="composer-foot">
-              <p id="hint">Un problema, una frustración, una oportunidad o una idea.</p>
-              <button type="submit" class="btn">Empezar</button>
-            </div>
+            <textarea id="problem" name="problem" rows="2" maxlength="800" lang="es" enterkeyhint="send" autofocus></textarea>
+            <button type="submit" class="send"><span class="sr-only">Empezar</span></button>
           </div>
           <p id="composer-error" class="error" hidden></p>
         </form>
-        <div class="prompts">
-          <button type="button" class="prompt" data-fill="Pierdo demasiado tiempo coordinando mi equipo.">Pierdo demasiado tiempo coordinando mi equipo.</button>
-          <button type="button" class="prompt" data-fill="Quiero automatizar algo que hacemos manualmente.">Quiero automatizar algo que hacemos manualmente.</button>
-          <button type="button" class="prompt" data-fill="Tengo una idea para una aplicación.">Tengo una idea para una aplicación.</button>
-          <button type="button" class="prompt" data-fill="Hay una oportunidad en mi industria que nadie está aprovechando.">Hay una oportunidad en mi industria que nadie está aprovechando.</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="block" id="como-funciona" aria-labelledby="como-title">
-      <p class="kicker">Cómo funciona</p>
-      <h2 id="como-title">Un ciclo. No una lista que termina.</h2>
-      <ol class="cycle">
-        <li>
-          <span class="step">01</span>
-          <h3>Tú decides</h3>
-          <p>Aclaramos qué tiene que pasar.</p>
-        </li>
-        <li>
-          <span class="step">02</span>
-          <h3>Decision Channel lo define</h3>
-          <p>Esas decisiones se vuelven la definición del proyecto.</p>
-        </li>
-        <li>
-          <span class="step">03</span>
-          <h3>Nosotros construimos</h3>
-          <p>La aplicación sigue lo que ya quedó decidido.</p>
-        </li>
-        <li>
-          <span class="step">04</span>
-          <h3>Seguimos decidiendo</h3>
-          <p>Lo que cambia en el canal, cambia en el software.</p>
-        </li>
-      </ol>
-      <p class="cycle-note">El canal no se cierra. Lo construido vuelve a discutirse.</p>
-    </section>
-
-    <section class="block" id="proyectos" aria-labelledby="proyectos-title">
-      <p class="kicker">Proyectos</p>
-      <h2 id="proyectos-title">Se puede empezar desde algo desordenado.</h2>
-      <div class="cases">
-        <figure class="case">
-          <blockquote>
-            <p>Necesito saber qué técnicos realmente están disponibles antes de asignar un trabajo.</p>
-          </blockquote>
-          <p class="becomes">Se convierte en</p>
-          <div class="sketch" aria-hidden="true">
-            <div class="sketch-top"><span>Asignación</span><span class="sketch-tag">Boceto</span></div>
-            <ul class="sketch-list">
-              <li><span>Luis</span><span class="ok">Disponible</span></li>
-              <li><span>Ana</span><span>En un trabajo</span></li>
-              <li><span>Carlos</span><span class="ok">Disponible</span></li>
-            </ul>
-            <div class="sketch-job"><span>Mantenimiento · Piantini</span><span class="sketch-tag">Sin asignar</span></div>
-          </div>
-          <figcaption>
-            <p>Ver quién está libre y asignar desde ahí.</p>
-            <button type="button" class="linkish" data-start="Necesito saber qué técnicos realmente están disponibles antes de asignar un trabajo.">Empezar desde aquí</button>
-          </figcaption>
-        </figure>
-
-        <figure class="case">
-          <blockquote>
-            <p>Mis clientes hacen sus pedidos por WhatsApp y después tenemos que copiar todo manualmente.</p>
-          </blockquote>
-          <p class="becomes">Se convierte en</p>
-          <div class="sketch" aria-hidden="true">
-            <p class="bubble">Hola, 2 libras de yuca y 1 pollo. Me lo llevas a Gazcue.</p>
-            <div class="sketch-top"><span>Pedido</span><span class="sketch-tag">Listo</span></div>
-            <ul class="sketch-list">
-              <li><span>Yuca</span><span>2 lb</span></li>
-              <li><span>Pollo</span><span>1</span></li>
-              <li><span>Entrega</span><span>Gazcue</span></li>
-            </ul>
-          </div>
-          <figcaption>
-            <p>El mensaje queda como un pedido. Nadie lo vuelve a escribir.</p>
-            <button type="button" class="linkish" data-start="Mis clientes hacen sus pedidos por WhatsApp y después tenemos que copiar todo manualmente.">Empezar desde aquí</button>
-          </figcaption>
-        </figure>
-
-        <figure class="case">
-          <blockquote>
-            <p>Tengo una idea, pero todavía no sé exactamente cómo debería funcionar.</p>
-          </blockquote>
-          <p class="becomes">Se convierte en</p>
-          <div class="sketch sketch-sparse" aria-hidden="true">
-            <div class="sketch-top"><span>Primer uso</span><span class="sketch-tag">Abierto</span></div>
-            <p class="sketch-quiet">El resto puede esperar. Esto ya es un comienzo.</p>
-            <span class="sketch-line"></span>
-            <span class="sketch-line short"></span>
-          </div>
-          <figcaption>
-            <p>Definir el primer uso, con lo demás todavía abierto.</p>
-            <button type="button" class="linkish" data-start="Tengo una idea, pero todavía no sé exactamente cómo debería funcionar.">Empezar desde aquí</button>
-          </figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <section class="block" id="nosotros" aria-labelledby="nosotros-title">
-      <p class="kicker">Nosotros</p>
-      <h2 id="nosotros-title">Compás Caribe</h2>
-      <div class="about">
-        <p>Construimos aplicaciones a la medida con clientes en República Dominicana.</p>
-        <p>No hace falta saber cómo se hace el software. Hace falta saber qué quieres lograr. Decision Channel es donde eso se define. Nosotros lo construimos.</p>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer">
-    <p>Compás Caribe · República Dominicana</p>
-    <a href="mailto:hello@compascaribe.com">hello@compascaribe.com</a>
-  </footer>
-
   <div id="live" class="sr-only" aria-live="polite"></div>
-
-  <dialog id="login-dialog" closedby="any" aria-labelledby="login-title">
-    <form method="dialog">
-      <h2 id="login-title">Iniciar sesión</h2>
-      <p>Para clientes que ya tienen un Decision Channel.</p>
-      <label for="login-email">Correo</label>
-      <input id="login-email" type="email" inputmode="email" autocomplete="email" lang="es">
-      <p id="login-note" class="note" hidden>Este prototipo no inicia sesión. En el producto, aquí volverías a tu canal.</p>
-      <div class="dialog-actions">
-        <button type="button" class="btn" id="login-enter">Entrar</button>
-        <button type="submit" class="btn ghost" value="close">Cerrar</button>
-      </div>
-    </form>
-  </dialog>
 
   <script type="module" src="/src/main.js"></script>
 </body>

@@ -434,7 +434,7 @@ function showError(message) {
   }
   if (area) {
     area.setAttribute('aria-invalid', 'true')
-    area.setAttribute('aria-describedby', 'composer-error hint')
+    area.setAttribute('aria-describedby', 'composer-error')
     area.focus()
   }
 }
@@ -445,7 +445,7 @@ function clearError() {
   if (note) note.hidden = true
   if (area) {
     area.removeAttribute('aria-invalid')
-    area.setAttribute('aria-describedby', 'hint')
+    area.removeAttribute('aria-describedby')
   }
 }
 
@@ -453,7 +453,24 @@ function bindCompose() {
   const form = stage.querySelector('#composer')
   const area = stage.querySelector('#problem')
   if (!form || !area) return
-  area.addEventListener('input', clearError)
+  area.addEventListener('input', () => {
+    clearError()
+    document.body.classList.toggle('is-saying', area.value.trim().length > 0)
+  })
+  let lastCompositionEndAt = null
+  area.addEventListener('compositionend', (event) => {
+    lastCompositionEndAt = event.timeStamp
+  })
+  area.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.shiftKey) return
+    event.preventDefault()
+    if (event.isComposing || event.keyCode === 229) return
+    if (
+      lastCompositionEndAt !== null &&
+      Math.abs(event.timeStamp - lastCompositionEndAt) < 50
+    ) return
+    form.requestSubmit()
+  })
   form.addEventListener('submit', (event) => {
     event.preventDefault()
     const text = area.value.trim()
@@ -469,7 +486,7 @@ function showCompose() {
   window.clearTimeout(timer)
   lock = false
   state = null
-  document.body.classList.remove('is-working')
+  document.body.classList.remove('is-working', 'is-saying')
   stage.classList.remove('is-channel')
   stage.innerHTML = composeSnapshot
   bindCompose()
@@ -489,6 +506,7 @@ function startChannel(text) {
     answers: [],
     pending: scenarios[scenarioId].pending.map((item) => ({ ...item, options: [...item.options] }))
   }
+  document.body.classList.remove('is-saying')
   document.body.classList.add('is-working')
   stage.classList.add('is-channel')
   render()
@@ -875,35 +893,41 @@ function init() {
     if (start) startChannel(start.dataset.start)
   })
 
-  document.querySelector('#brand').addEventListener('click', (event) => {
-    if (!stage.classList.contains('is-channel')) return
-    event.preventDefault()
-    showCompose()
-  })
+  const brand = document.querySelector('#brand')
+  if (brand) {
+    brand.addEventListener('click', (event) => {
+      if (!stage.classList.contains('is-channel')) return
+      event.preventDefault()
+      showCompose()
+    })
+  }
 
   const dialog = document.querySelector('#login-dialog')
-  const email = document.querySelector('#login-email')
-  const note = document.querySelector('#login-note')
-  document.querySelector('#login-open').addEventListener('click', () => {
-    note.hidden = true
-    dialog.showModal()
-    email.focus()
-  })
-  document.querySelector('#login-enter').addEventListener('click', () => {
-    note.hidden = false
-  })
-  email.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return
-    event.preventDefault()
-    note.hidden = false
-  })
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) dialog.close()
-  })
-  dialog.addEventListener('close', () => {
-    note.hidden = true
-    email.value = ''
-  })
+  const loginOpen = document.querySelector('#login-open')
+  if (dialog && loginOpen) {
+    const email = document.querySelector('#login-email')
+    const note = document.querySelector('#login-note')
+    loginOpen.addEventListener('click', () => {
+      note.hidden = true
+      dialog.showModal()
+      email.focus()
+    })
+    document.querySelector('#login-enter').addEventListener('click', () => {
+      note.hidden = false
+    })
+    email.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return
+      event.preventDefault()
+      note.hidden = false
+    })
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close()
+    })
+    dialog.addEventListener('close', () => {
+      note.hidden = true
+      email.value = ''
+    })
+  }
 }
 
 init()
