@@ -31,9 +31,16 @@ html {
   scroll-behavior: smooth;
 }
 
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100svh;
+  overflow: hidden;
   background: #12182a;
   color: var(--blush);
   font-family: var(--sans);
@@ -414,6 +421,207 @@ h1 {
 .send:hover::before,
 .send:focus-visible::before {
   opacity: 1;
+}
+
+.frame {
+  width: min(40rem, calc(100% - 2.4rem));
+  height: 100svh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.7rem;
+  padding: 7rem 0 1.2rem;
+  overflow: hidden;
+  color: var(--blush);
+}
+
+.frame h1 {
+  font-family: var(--display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.65rem, 4vw, 2.8rem);
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  max-width: 18ch;
+  color: var(--blush);
+}
+
+.ticks {
+  display: flex;
+  gap: 0.35rem;
+  width: 5.2rem;
+}
+
+.ticks .tick {
+  height: 3px;
+  background: rgba(247, 239, 232, 0.28);
+}
+
+.ticks .tick.is-on {
+  background: var(--heat);
+}
+
+.answers {
+  display: flex;
+  flex-direction: column;
+  width: min(34rem, 100%);
+}
+
+.answer {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(247, 239, 232, 0.22);
+  color: var(--blush);
+  font-family: var(--display);
+  font-style: italic;
+  font-size: clamp(1.02rem, 2vw, 1.28rem);
+  line-height: 1.2;
+  padding: 0.38rem 0;
+}
+
+.answer.is-selected {
+  color: var(--heat);
+}
+
+.frame #composer {
+  width: min(34rem, 100%);
+  margin-top: 0.2rem;
+}
+
+.frame-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.2rem;
+  align-items: center;
+}
+
+.text-btn,
+.frame .linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--blush);
+  font-size: 0.92rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+.decisions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.decisions div {
+  display: grid;
+  grid-template-columns: 7.2rem minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: baseline;
+}
+
+.decisions dt {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--heat);
+}
+
+.decisions dd {
+  margin: 0;
+  font-family: var(--display);
+  font-style: italic;
+  font-size: clamp(1rem, 1.8vw, 1.28rem);
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pending {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pending-q {
+  font-family: var(--display);
+  font-style: italic;
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  line-height: 1.15;
+}
+
+.pending-note {
+  color: rgba(247, 239, 232, 0.72);
+  font-size: 0.88rem;
+  list-style: none;
+}
+
+.frame-sketch h1 {
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+}
+
+.frame .app-shell {
+  margin-top: 0;
+  background: rgba(16, 22, 20, 0.55);
+  color: var(--cream);
+  box-shadow: none;
+  border: 1px solid rgba(247, 239, 232, 0.16);
+}
+
+.frame .app-body,
+.frame .app-columns > div {
+  padding: 0.65rem 0.8rem 0.75rem;
+}
+
+.frame .sketch-list {
+  gap: 0.28rem;
+  font-size: 0.92rem;
+}
+
+.frame .app-shell .example,
+.frame .app-shell .sketch-list span:last-child,
+.frame .app-shell .sketch-job span:last-child {
+  color: rgba(247, 239, 232, 0.78);
+}
+
+.frame .app-shell .app-label,
+.frame .app-shell .ok {
+  color: var(--heat) !important;
+}
+
+.frame .before li {
+  color: rgba(247, 239, 232, 0.55);
+}
+
+@media (max-width: 520px) {
+  .decisions div {
+    grid-template-columns: 1fr;
+    gap: 0.05rem;
+  }
+}
+
+@media (max-height: 760px) {
+  .frame {
+    padding-top: 5.6rem;
+    gap: 0.4rem;
+  }
+
+  .frame h1 {
+    font-size: clamp(1.4rem, 4.5vw, 2rem);
+  }
+
+  .answer {
+    padding: 0.26rem 0;
+    font-size: 1rem;
+  }
 }
 
 .btn {
