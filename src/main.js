@@ -412,19 +412,6 @@ function setLive(message) {
   live.textContent = message
 }
 
-function scrollToStage() {
-  stage.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-}
-
-function focusTitle(scroll) {
-  const title = stage.querySelector('#page-title')
-  if (!title) return
-  title.setAttribute('tabindex', '-1')
-  title.focus({ preventScroll: true })
-  if (!scroll) return
-  title.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-}
-
 function showError(message) {
   const note = stage.querySelector('#composer-error')
   const area = stage.querySelector('#problem')
@@ -449,9 +436,7 @@ function clearError() {
   }
 }
 
-function bindCompose() {
-  const form = stage.querySelector('#composer')
-  const area = stage.querySelector('#problem')
+function bindField(form, area, onSubmit) {
   if (!form || !area) return
   area.addEventListener('input', () => {
     clearError()
@@ -478,8 +463,12 @@ function bindCompose() {
       showError('Escribe una frase, aunque sea incompleta.')
       return
     }
-    startChannel(text)
+    onSubmit(text)
   })
+}
+
+function bindCompose() {
+  bindField(stage.querySelector('#composer'), stage.querySelector('#problem'), startChannel)
 }
 
 function showCompose() {
@@ -490,8 +479,8 @@ function showCompose() {
   stage.classList.remove('is-channel')
   stage.innerHTML = composeSnapshot
   bindCompose()
-  scrollToStage()
-  focusTitle()
+  const area = stage.querySelector('#problem')
+  if (area) area.focus({ preventScroll: true })
 }
 
 function startChannel(text) {
@@ -506,32 +495,50 @@ function startChannel(text) {
     answers: [],
     pending: scenarios[scenarioId].pending.map((item) => ({ ...item, options: [...item.options] }))
   }
-  document.body.classList.remove('is-saying')
-  document.body.classList.add('is-working')
-  stage.classList.add('is-channel')
+  document.body.classList.remove('is-saying', 'is-working')
+  stage.classList.remove('is-channel')
   render()
-  scrollToStage()
   setLive('Decision Channel empezó. Primera pregunta.')
 }
 
-function channelHead(progress) {
+function tickRow(filled) {
   const total = scenario().questions.length
-  const filled = Math.min(state.answers.filter((item) => item.category !== 'Decisiones').length, total)
   const meter = el('div', {
-    class: 'meter',
+    class: 'ticks',
     role: 'img',
-    'aria-label': `${filled} de ${total} definiciones de la primera ronda`
+    'aria-label': `${filled} de ${total}`
   })
   for (let index = 0; index < total; index += 1) {
     meter.append(el('span', { class: index < filled ? 'tick is-on' : 'tick' }))
   }
-  return el('header', { class: 'channel-head' }, [
-    el('p', { class: 'kicker', text: 'Decision Channel' }),
-    el('p', { class: 'origin', text: state.origin }),
-    el('p', { class: 'progress', text: progress }),
-    meter
-  ])
+  return meter
 }
+
+function answerForm(onSubmit) {
+  const note = el('p', { id: 'composer-error', class: 'error', hidden: '' })
+  note.hidden = true
+  const area = el('textarea', {
+    id: 'problem',
+    name: 'problem',
+    rows: '2',
+    maxlength: '800',
+    lang: 'es',
+    enterkeyhint: 'send'
+  })
+  const form = el('form', { id: 'composer', action: '#stage', method: 'get' }, [
+    el('label', { class: 'sr-only', for: 'problem', text: 'Tu respuesta' }),
+    el('div', { class: 'composer' }, [
+      area,
+      el('button', { type: 'submit', class: 'send' }, [
+        el('span', { class: 'sr-only', text: 'Registrar' })
+      ])
+    ]),
+    note
+  ])
+  bindField(form, area, onSubmit)
+  return form
+}
+
 
 function restartControl() {
   return el('button', {
@@ -549,32 +556,6 @@ function wireRestart(root) {
   })
 }
 
-function logPanel() {
-  const done = state.answers.filter((item) => item.category !== 'Decisiones')
-  const remaining = scenario().questions
-    .map((item) => item.category)
-    .filter((category) => !done.some((item) => item.category === category))
-
-  const made = done.length
-    ? el('ul', {}, done.map((item) => el('li', {}, [
-      el('span', { class: 'cat', text: item.category }),
-      el('span', { text: item.value })
-    ])))
-    : el('p', { class: 'empty', text: 'Todavía no hay decisiones.' })
-
-  const open = remaining.length
-    ? el('ul', {}, remaining.map((category) => el('li', {}, [
-      el('span', { text: category })
-    ])))
-    : el('p', { class: 'empty', text: 'La primera ronda está completa.' })
-
-  return el('aside', { class: 'log', 'aria-label': 'Decisiones de este proyecto' }, [
-    el('h2', { text: 'Hasta ahora' }),
-    made,
-    el('h3', { text: 'Pendiente' }),
-    open
-  ])
-}
 
 function choose(value, button) {
   if (lock) return
@@ -604,81 +585,46 @@ function choose(value, button) {
 
 function renderQuestion() {
   const question = scenario().questions[state.step]
-  const prior = []
-  state.answers.forEach((item, index) => {
-    const asked = scenario().questions[index]
-    prior.push(el('li', { class: 'turn past' }, [
-      el('span', { class: 'who', text: 'Decision Channel' }),
-      el('p', { text: asked.prompt })
-    ]))
-    prior.push(el('li', { class: 'turn you past' }, [
-      el('span', { class: 'who', text: 'Tú' }),
-      el('p', { text: item.value })
-    ]))
-  })
-
-  const choices = el('div', { class: 'choices', role: 'group', 'aria-labelledby': 'page-title' })
+  const form = answerForm((text) => choose(text, form.querySelector('.send')))
+  const area = form.querySelector('#problem')
+  const choices = el('div', { class: 'answers', role: 'group', 'aria-labelledby': 'page-title' })
+  const mark = () => {
+    const value = area.value.trim()
+    choices.querySelectorAll('.answer').forEach((item) => {
+      const selected = item.textContent === value
+      item.classList.toggle('is-selected', selected)
+      item.setAttribute('aria-pressed', selected ? 'true' : 'false')
+    })
+  }
   question.options.forEach((option) => {
-    const button = el('button', { type: 'button', class: 'choice', text: option })
-    button.addEventListener('click', () => choose(option, button))
+    const button = el('button', {
+      type: 'button',
+      class: 'answer',
+      text: option,
+      'aria-pressed': 'false'
+    })
+    button.addEventListener('click', () => {
+      area.value = option
+      area.dispatchEvent(new Event('input', { bubbles: true }))
+      mark()
+      area.focus({ preventScroll: true })
+    })
     choices.append(button)
   })
+  area.addEventListener('input', mark)
 
-  const ownInput = el('textarea', { id: 'own-words', lang: 'es', maxlength: '400' })
-  const ownError = el('p', { class: 'error', hidden: '' })
-  ownError.hidden = true
-  const ownPanel = el('div', { class: 'own-panel', id: 'own-panel', hidden: '' }, [
-    el('label', { for: 'own-words', text: 'Tu respuesta' }),
-    ownInput,
-    ownError,
-    el('button', { type: 'button', class: 'btn', id: 'use-own', text: 'Usar esta respuesta' })
-  ])
-  ownPanel.hidden = true
-  const ownToggle = el('button', {
-    type: 'button',
-    class: 'linkish',
-    text: 'Responder con mis palabras',
-    'aria-expanded': 'false',
-    'aria-controls': 'own-panel'
-  })
-  ownToggle.addEventListener('click', () => {
-    const open = ownPanel.hidden
-    ownPanel.hidden = !open
-    ownToggle.setAttribute('aria-expanded', open ? 'true' : 'false')
-    if (open) {
-      ownInput.focus({ preventScroll: true })
-      ownPanel.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
-    }
-  })
-  ownPanel.querySelector('#use-own').addEventListener('click', () => {
-    const text = ownInput.value.trim()
-    if (!text) {
-      ownError.hidden = false
-      ownError.textContent = 'Escribe tu respuesta para registrarla.'
-      ownInput.focus()
-      return
-    }
-    choose(text, ownPanel.querySelector('#use-own'))
-  })
-
-  const current = el('li', { class: 'turn current' }, [
-    el('span', { class: 'who', text: 'Decision Channel' }),
+  const view = el('div', { class: 'frame' }, [
+    tickRow(state.step),
     el('h1', { id: 'page-title', text: question.prompt }),
-    el('p', { class: 'example', text: question.example }),
     choices,
-    el('div', { class: 'own' }, [ownToggle, ownPanel])
-  ])
-
-  const thread = el('ol', { class: 'thread' }, [...prior, current])
-  const view = el('div', { class: 'channel rise' }, [
-    channelHead(`Pregunta ${state.step + 1} de ${scenario().questions.length} · ${question.category}`),
-    el('div', { class: 'channel-layout' }, [thread, logPanel()]),
-    el('div', { class: 'actions' }, [restartControl()])
+    form,
+    el('div', { class: 'frame-foot' }, [restartControl()])
   ])
   stage.replaceChildren(view)
   wireRestart(view)
-  focusTitle(state.step > 0)
+  area.focus({ preventScroll: true })
 }
+
 
 function resolvePending(value, button) {
   if (lock || !state.pending.length) return
@@ -702,44 +648,33 @@ function resolvePending(value, button) {
 
 function renderBoard() {
   const categories = ['Objetivo', 'Usuarios', 'Proceso actual', 'Nuevo proceso']
-  const cards = categories.map((category) => el('article', {}, [
-    el('h2', { text: category }),
-    el('p', { text: answerFor(category) })
-  ]))
+  const lines = el('dl', { class: 'decisions' })
+  categories.forEach((category) => {
+    lines.append(el('div', {}, [
+      el('dt', { text: category }),
+      el('dd', { text: answerFor(category) })
+    ]))
+  })
 
-  const decisions = state.answers.map((item) => el('li', { text: item.value }))
-  const laterPending = state.pending.slice(1).map((item) => el('li', { text: item.prompt }))
+  const later = state.pending.slice(1).map((item) => el('li', { text: item.prompt }))
   const follow = state.pending[0]
-    ? el('div', { class: 'follow' }, [
-      el('p', { text: state.pending[0].prompt }),
-      ...state.pending[0].options.map((option) => {
-        const button = el('button', { type: 'button', class: 'choice', text: option })
+    ? el('div', { class: 'pending' }, [
+      el('p', { class: 'pending-q', text: state.pending[0].prompt }),
+      el('div', { class: 'answers' }, state.pending[0].options.map((option) => {
+        const button = el('button', { type: 'button', class: 'answer', text: option })
         button.addEventListener('click', () => resolvePending(option, button))
         return button
-      }),
-      laterPending.length ? el('ul', { class: 'pending-list' }, laterPending) : null
+      })),
+      later.length ? el('ul', { class: 'pending-note' }, later) : null
     ])
-    : el('p', { class: 'pending-left', text: 'Nada pendiente en este recorrido.' })
+    : el('p', { class: 'pending-note', text: 'Nada pendiente en este recorrido.' })
 
-  const wide = el('article', { class: 'wide' }, [
-    el('div', { class: 'wide-split' }, [
-      el('div', {}, [
-        el('h2', { text: 'Decisiones' }),
-        el('ul', { class: 'decision-list' }, decisions)
-      ]),
-      el('div', {}, [
-        el('h2', { text: 'Pendiente' }),
-        follow
-      ])
-    ])
-  ])
-
-  const view = el('div', { class: 'channel rise' }, [
-    channelHead(`${state.answers.length} decisiones · ${state.pending.length} pendientes`),
-    el('h1', { id: 'page-title', text: 'Lo decidido hasta ahora' }),
-    el('div', { class: 'board' }, [...cards, wide]),
-    el('div', { class: 'actions' }, [
-      el('button', { type: 'button', class: 'btn', id: 'see-app', text: 'Ver cómo se vería' }),
+  const view = el('div', { class: 'frame frame-board' }, [
+    tickRow(scenario().questions.length),
+    lines,
+    follow,
+    el('div', { class: 'frame-foot' }, [
+      el('button', { type: 'button', class: 'text-btn', id: 'see-app', text: 'Ver cómo se vería' }),
       restartControl()
     ])
   ])
@@ -750,8 +685,8 @@ function renderBoard() {
     render()
   })
   wireRestart(view)
-  focusTitle(true)
 }
+
 
 function row(left, right, ok) {
   return el('li', {}, [
@@ -850,13 +785,12 @@ function renderSketch() {
 }
 
 function renderApp() {
-  const view = el('div', { class: 'channel rise' }, [
-    channelHead('La aplicación sigue lo que ya está decidido.'),
+  const view = el('div', { class: 'frame frame-sketch' }, [
+    tickRow(scenario().questions.length),
     el('h1', { id: 'page-title', text: 'Así podría empezar' }),
-    el('p', { class: 'example', text: 'Un boceto. Cambia si el canal cambia.' }),
     renderSketch(),
-    el('div', { class: 'actions' }, [
-      el('button', { type: 'button', class: 'btn ghost', id: 'back-board', text: 'Volver al tablero' }),
+    el('div', { class: 'frame-foot' }, [
+      el('button', { type: 'button', class: 'text-btn', id: 'back-board', text: 'Volver al tablero' }),
       restartControl()
     ])
   ])
@@ -866,7 +800,6 @@ function renderApp() {
     render()
   })
   wireRestart(view)
-  focusTitle(true)
 }
 
 function render() {
