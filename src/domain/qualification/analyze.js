@@ -4,10 +4,11 @@
 // both reason about the same facts. Pure and synchronous.
 
 import {
-  ACTORS, ARTIFACTS, BUILD_VERBS, DOMAINS, GREETING_WORDS, INJECTION_PATTERNS,
-  JOB_SEEKING_PATTERNS, OFF_TOPIC_PATTERNS, OPERATIONS, OPERATION_PHRASE, ORG_CUT_WORDS,
-  ORG_NOUNS, OUTCOMES, PAINS, PURPOSE_CLAUSE, SCALE, SOLUTION_LEADS, STOPWORDS,
-  SUPPORT_PATTERNS, VENDOR_PITCH_PATTERNS, VENDOR_PITCH_WEAK_PATTERNS,
+  ACTORS, ARTIFACTS, BUILD_VERBS, DOMAINS, GREETING_WORDS, INJECTION_PATTERNS, INTENSIFIERS,
+  JOB_SEEKING_PATTERNS, NEGATION_BEFORE, OFF_TOPIC_PATTERNS, OPERATIONS, OPERATION_PHRASE,
+  ORG_CUT_WORDS, ORG_NOUNS, OUTCOMES, PAINS, PRODUCT_FOR_OTHERS, PURPOSE_CLAUSE, ROLE_WORDS,
+  SCALE, SOLUTION_LEADS, STOPWORDS, SUPPORT_PATTERNS, VENDOR_PITCH_PATTERNS,
+  VENDOR_PITCH_WEAK_PATTERNS,
 } from './lexicon.js'
 import { looksSpanish, translateHints } from './spanish.js'
 
@@ -33,6 +34,9 @@ import { looksSpanish, translateHints } from './spanish.js'
  * @property {string[]} keywords          content words, most frequent first
  * @property {boolean} solutionFirst      names an artifact but no problem/outcome
  * @property {boolean} substance        any concrete subject matter detected
+ * @property {string[]} rejectedArtifacts  tools the visitor explicitly does not want ("not a chatbot")
+ * @property {boolean} productForOthers  building for other businesses or the public, not their own operation
+ * @property {boolean} role              the visitor describes themselves by role ("I am a landlord")
  * @property {{offTopic:boolean,jobSeeking:boolean,vendorPitch:boolean,vendorPitchWeak:boolean,support:boolean,injection:boolean,greeting:boolean}} negatives
  */
 
@@ -109,16 +113,15 @@ function detectGibberish(normalized, tokens) {
 }
 
 function detectDomain(normalized) {
-  let best = null
-  let bestScore = 0
-  for (const d of DOMAINS) {
-    const hits = matchList(normalized, d.words).length
-    if (hits > bestScore) {
-      bestScore = hits
-      best = d
-    }
-  }
-  return best ? { id: best.id, noun: best.noun, plural: best.plural, actors: best.actors } : null
+  const scored = DOMAINS.map(d => {
+    const hits = matchList(normalized, d.words)
+    const score = hits.reduce((n, w) => n + (w.includes(' ') ? 2 : 1), 0)
+    return { d, score, hits: hits.length }
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score)
+  if (!scored.length) return null
+  if (scored.length > 1 && scored[0].score === scored[1].score) return null // ambiguous
+  const { d, hits, score } = scored[0]
+  return { id: d.id, noun: d.noun, plural: d.plural, actors: d.actors, hits, score }
 }
 
 function detectActors(normalized) {
@@ -154,7 +157,8 @@ function captureOperation(raw) {
     if (!kept.length) continue
     const hasOrgNoun = kept.some(w => ORG_NOUNS.includes(w.toLowerCase().replace(/'s$/, '')))
     if (!hasOrgNoun) continue
-    return `${determiner} ${adjective}${kept.join(' ')}`.replace(/\s+/g, ' ').trim()
+    const det = /^\d+$|^(two|three|four|five|six|several)$/i.test(determiner) ? `your ${determiner}` : determiner
+    return `${det} ${adjective}${kept.join(' ')}`.replace(INTENSIFIERS, '').replace(/\s+/g, ' ').trim()
   }
   return null
 }
@@ -184,7 +188,9 @@ export function analyze(raw) {
   const gibberish = detectGibberish(normalized, tokens)
 
   const build = matchList(normalized, BUILD_VERBS)
-  const artifacts = matchList(normalized, ARTIFACTS)
+  const allArtifacts = matchList(normalized, ARTIFACTS)
+  const rejectedArtifacts = allArtifacts.filter(a => new RegExp(`${NEGATION_BEFORE}${a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![a-z])`, 'i').test(normalized))
+  const artifacts = allArtifacts.filter(a => !rejectedArtifacts.includes(a))
   const operations = matchList(normalized, OPERATIONS)
   const pains = matchList(normalized, PAINS)
   const outcomes = matchList(normalized, OUTCOMES)
@@ -206,7 +212,10 @@ export function analyze(raw) {
   const tooShort = wordCount < 3 || normalized.length < 12
   const organization = captureOperation(text)
   const purpose = capturePurpose(text)
-  const substance = Boolean(artifacts.length || operations.length || pains.length || outcomes.length || domain || organization || purpose)
+  // Substance means a subject to talk about: an outcome word alone ("great job") is not one.
+  const substance = Boolean(artifacts.length || operations.length || pains.length || domain || organization || purpose || (outcomes.length && build.length))
+  const productForOthers = PRODUCT_FOR_OTHERS.test(text)
+  const role = ROLE_WORDS.test(text)
 
   return {
     raw: source,
@@ -229,6 +238,9 @@ export function analyze(raw) {
     keywords: keywords(tokens),
     solutionFirst,
     substance,
+    rejectedArtifacts,
+    productForOthers,
+    role,
     negatives,
   }
 }

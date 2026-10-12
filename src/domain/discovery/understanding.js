@@ -2,7 +2,10 @@
 // extracted features. The simulated engine builds every reflection, question
 // and statement from this object plus the visitor's answers.
 
-import { cap, isUncountable, joinNatural, lower, plural, stripTerminal, toSecondPerson, trimTo } from './language.js'
+import { cap, isUncountable, joinNatural, lower, plural, stripTerminal, toSecondPerson, toYou, trimTo } from './language.js'
+
+// Synonyms that must never appear together as "sales and sales".
+const SYNONYMS = { sales: 'sale', 'check-in': 'check in', invoicing: 'invoice', enquiry: 'inquiry', catalogue: 'catalog', reservation: 'booking', shipment: 'parcel' }
 
 const OPS_PRIORITY = [
   'order', 'booking', 'reservation', 'appointment', 'work order', 'purchase order',
@@ -124,10 +127,7 @@ function normalizePurpose(raw, organization) {
       }
     }
   }
-  p = toSecondPerson(p)
-  p = p.replace(/\b(we|us)\b/gi, 'you').replace(/\bi\b/g, 'you').replace(/\byour team\b/gi, 'your team')
-  p = p.replace(/^your\s+/i, m => m) // no-op, keeps intent explicit
-  p = p.trim()
+  p = toYou(toSecondPerson(p)).trim()
   if (!p || p.split(' ').length < 2) return { purpose: null, purposeKind: null }
   return { purpose: trimTo(lower(p), 100), purposeKind: kind }
 }
@@ -137,7 +137,7 @@ function normalizePurpose(raw, organization) {
  * @returns {Understanding}
  */
 export function deriveUnderstanding(f) {
-  const ops = [...new Set(f.operations)]
+  const ops = [...new Set(f.operations.map(o => SYNONYMS[o] || o))]
   const ranked = ops
     .map(o => ({ o, i: OPS_PRIORITY.indexOf(o) }))
     .map(x => ({ ...x, i: x.i === -1 ? 999 : x.i }))
@@ -159,7 +159,7 @@ export function deriveUnderstanding(f) {
   let subjectWords
   if (things.length) {
     subjectOne = things[0]
-    subjectWords = things.slice(0, 2).map(t => (isUncountable(t) || t === 'client work' ? t : plural(t)))
+    subjectWords = [...new Set(things.slice(0, 2).map(t => (isUncountable(t) || t === 'client work' ? t : plural(t))))]
   } else if (people.length) {
     subjectOne = people[0]
     subjectWords = [plural(people[0])]
@@ -173,16 +173,20 @@ export function deriveUnderstanding(f) {
 
   let who = null
   let whoNoun = null
-  if (f.organization) {
+  const strongDomain = Boolean(f.domain) && !f.productForOthers && ((f.domain.hits || 0) >= 2 || f.operations.length > 0 || Boolean(f.organization))
+  if (f.organization && !f.productForOthers) {
     who = toSecondPerson(f.organization)
     whoNoun = who.replace(/^your\s+/, '')
-  } else if (f.domain) {
+  } else if (f.role && !f.productForOthers) {
+    who = 'you'
+    whoNoun = null
+  } else if (strongDomain) {
     who = `your ${f.domain.noun}`
     whoNoun = f.domain.noun
   }
 
   const artifactWord = f.artifacts.find(a => !['spreadsheet', 'form', 'reports', 'reporting', 'notification', 'alerts', 'reminders', 'calendar', 'system'].includes(a)) || f.artifacts[0] || null
-  const artifact = artifactWord ? (/^[aeiou]/.test(artifactWord) ? `an ${artifactWord}` : `a ${artifactWord}`) : null
+  const artifact = artifactWord ? articleFor(artifactWord) : null
 
   const actorIds = f.actors.filter(a => a !== 'managers')
   let actorsId = actorIds[0] || null
@@ -208,6 +212,8 @@ export function deriveUnderstanding(f) {
   }
 
   let { purpose, purposeKind } = normalizePurpose(f.purpose, f.organization)
+  // A purpose that still talks about "me" after conversion is not safe to echo.
+  if (purpose && /\b(me|my|i|myself)\b/.test(purpose)) purpose = null
   // A bridged Spanish submission keeps the purpose *kind* (it shapes the plan)
   // but not the words: a half-translated clause must never reach the visitor.
   if (f.spanish) purpose = null
@@ -230,7 +236,21 @@ export function deriveUnderstanding(f) {
     domainId: f.domain?.id || null,
     domainOps: f.domain ? DOMAIN_OPS[f.domain.id] || null : null,
     solutionFirst: f.solutionFirst,
+    productForOthers: Boolean(f.productForOthers),
+    rejectedArtifact: f.rejectedArtifacts?.length ? articleFor(f.rejectedArtifacts[0]) : null,
   }
+}
+
+const ARTIFACT_NAMES = {
+  saas: 'a SaaS product', software: 'software', 'e-commerce': 'an online store', ecommerce: 'an online store',
+  api: 'an API', crm: 'a CRM', erp: 'an ERP', pos: 'a point of sale', mvp: 'an MVP', webapp: 'a web app',
+  'web app': 'a web app', automation: 'an automation', integration: 'an integration', intranet: 'an intranet',
+  application: 'an application', app: 'an app', assistant: 'an assistant', agent: 'an agent', extension: 'an extension',
+}
+
+export function articleFor(word) {
+  if (ARTIFACT_NAMES[word]) return ARTIFACT_NAMES[word]
+  return /^[aeiou]/.test(word) ? `an ${word}` : `a ${word}`
 }
 
 export function subjectOrFallback(u, fallback = 'the work you described') {

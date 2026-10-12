@@ -22,7 +22,7 @@ export const ARTIFACTS = [
   'platform', 'system', 'tool', 'software', 'dashboard', 'portal', 'database',
   'bot', 'chatbot', 'assistant', 'agent', 'automation', 'workflow', 'crm', 'erp',
   'pos', 'point of sale', 'booking system', 'scheduler', 'marketplace',
-  'online store', 'e-commerce', 'ecommerce', 'shop', 'api', 'integration', 'form',
+  'online store', 'e-commerce', 'ecommerce', 'api', 'integration', 'form',
   'intranet', 'kiosk', 'landing page', 'calendar', 'tracker', 'spreadsheet',
   'program', 'solution', 'prototype', 'mvp', 'saas', 'plugin', 'extension',
   'notification', 'alerts', 'reminders', 'reports', 'reporting',
@@ -39,7 +39,7 @@ export const OPERATIONS = [
   'enrollment', 'grade', 'loyalty', 'review', 'catalog', 'catalogue', 'product',
   'listing', 'contract', 'document', 'approval', 'compliance', 'onboarding',
   'training', 'sale', 'sales', 'subscription', 'rental', 'property', 'unit',
-  'fleet', 'vehicle', 'equipment', 'asset', 'job', 'project', 'task', 'case',
+  'fleet', 'vehicle', 'equipment', 'asset', 'jobs', 'job site', 'service job', 'project', 'task', 'case',
   'claim', 'application', 'registration', 'event', 'class', 'session', 'visit',
   'parcel', 'shipment', 'warehouse', 'supply', 'recipe', 'production', 'batch',
   'crop', 'harvest', 'livestock', 'donation', 'campaign', 'volunteer',
@@ -62,6 +62,11 @@ export const PAINS = [
   'all over the place', 'inconsistent', 'unreliable', 'broken', 'outdated',
   'legacy', 'clunky', 'hard to', 'difficult to', 'impossible to', 'struggle',
   'struggling', 'problem', 'issue', 'pain', 'confusion', 'confusing',
+  'never know', 'no way to know', 'until a customer complains', 'complain', 'complaint',
+  'complaints', 'run out', 'runs out', 'running out', 'ran out', 'walk the aisles',
+  'walking the aisles', 'chasing', 'chase', 'keep asking', 'keeps asking', 'keep calling',
+  'keeps calling', 'from memory', 'in my head', 'in his head', 'in her head', 'sticky notes',
+  'post-its', 'text me', 'texts me', 'call me', 'calls me',
 ]
 
 export const OUTCOMES = [
@@ -92,21 +97,21 @@ export const SCALE = [
 export const DOMAINS = [
   { id: 'hospitality', noun: 'restaurant', plural: 'guests', actors: 'guests', words: ['restaurant', 'cafe', 'café', 'bar', 'kitchen', 'menu', 'diners', 'catering', 'caterer', 'food truck', 'bakery', 'chef', 'reservations', 'tables'] },
   { id: 'lodging', noun: 'property', plural: 'guests', actors: 'guests', words: ['hotel', 'hostel', 'airbnb', 'villa', 'guesthouse', 'guest house', 'resort', 'rooms', 'check-in', 'check in', 'housekeeping', 'vacation rental', 'short-term rental'] },
-  { id: 'retail', noun: 'store', plural: 'customers', actors: 'customers', words: ['store', 'shop', 'retail', 'boutique', 'inventory', 'stock', 'products', 'sku', 'cashier', 'point of sale', 'pos', 'ecommerce', 'e-commerce', 'online store', 'catalog'] },
-  { id: 'logistics', noun: 'operation', plural: 'customers', actors: 'drivers and dispatchers', words: ['delivery', 'deliveries', 'dispatch', 'drivers', 'routes', 'fleet', 'trucks', 'shipments', 'courier', 'logistics', 'warehouse', 'parcels', 'freight'] },
-  { id: 'field-service', noun: 'service business', plural: 'customers', actors: 'technicians', words: ['technicians', 'technician', 'repair', 'installation', 'installers', 'plumbing', 'plumber', 'electrician', 'hvac', 'air conditioning', 'maintenance', 'work orders', 'field', 'service calls', 'contractor', 'landscaping', 'cleaning', 'pest control', 'pool'] },
-  { id: 'health', noun: 'practice', plural: 'patients', actors: 'patients', words: ['clinic', 'patients', 'patient', 'doctor', 'dentist', 'dental', 'medical', 'therapy', 'therapist', 'pharmacy', 'appointments', 'vet', 'veterinary', 'wellness', 'spa', 'salon', 'barber'] },
-  { id: 'education', noun: 'school', plural: 'students', actors: 'students and parents', words: ['school', 'students', 'student', 'teachers', 'teacher', 'course', 'courses', 'classes', 'tutoring', 'tutor', 'academy', 'training center', 'enrollment', 'grades', 'parents', 'curriculum', 'lessons'] },
-  { id: 'real-estate', noun: 'portfolio', plural: 'tenants', actors: 'tenants and owners', words: ['tenants', 'tenant', 'landlord', 'rent', 'rental', 'lease', 'leases', 'property management', 'properties', 'apartments', 'units', 'real estate', 'realtor', 'listings', 'hoa', 'condo'] },
+  { id: 'retail', noun: 'store', plural: 'customers', actors: 'customers', words: ['store', 'shop', 'retail', 'boutique', 'inventory', 'stock', 'product', 'sku', 'cashier', 'point of sale', 'pos', 'ecommerce', 'e-commerce', 'online store', 'catalog', 'colmado', 'bodega', 'tienda', 'hardware store', 'ferretería', 'ferreteria', 'minimarket', 'supermarket', 'grocery', 'repuestos', 'auto parts', 'car parts', 'spare parts', 'pharmacy'] },
+  { id: 'logistics', noun: 'operation', plural: 'customers', actors: 'drivers and dispatchers', words: ['delivery', 'dispatch', 'driver', 'route', 'fleet', 'truck', 'shipment', 'courier', 'logistics', 'warehouse', 'parcel', 'freight'] },
+  { id: 'field-service', noun: 'service business', plural: 'customers', actors: 'technicians', words: ['technician', 'repair', 'installation', 'installer', 'plumbing', 'plumber', 'electrician', 'hvac', 'air conditioning', 'maintenance', 'work order', 'service call', 'contractor', 'landscaping', 'cleaning', 'pest control', 'pool'] },
+  { id: 'health', noun: 'practice', plural: 'patients', actors: 'patients', words: ['clinic', 'patient', 'doctor', 'dentist', 'dental', 'medical', 'therapy', 'therapist', 'appointment', 'vet', 'veterinary', 'wellness', 'spa', 'salon', 'barber', 'hygienist', 'front desk'] },
+  { id: 'education', noun: 'school', plural: 'students', actors: 'students and parents', words: ['school', 'student', 'teacher', 'course', 'classes', 'tutoring', 'tutor', 'academy', 'training center', 'enrollment', 'grade', 'parents', 'curriculum', 'lesson'] },
+  { id: 'real-estate', noun: 'rental business', plural: 'tenants', actors: 'tenants and owners', words: ['tenant', 'landlord', 'rent', 'rental', 'lease', 'property management', 'properties', 'apartment', 'units', 'real estate', 'realtor', 'listing', 'hoa', 'condo'] },
   { id: 'nonprofit', noun: 'organization', plural: 'members', actors: 'members and volunteers', words: ['nonprofit', 'non-profit', 'ngo', 'donors', 'donations', 'volunteers', 'volunteer', 'church', 'congregation', 'foundation', 'charity', 'members', 'membership', 'community', 'association', 'cooperative', 'co-op'] },
-  { id: 'professional', noun: 'firm', plural: 'clients', actors: 'clients', words: ['law firm', 'lawyer', 'attorney', 'accountant', 'accounting', 'bookkeeping', 'consultant', 'consulting', 'agency', 'architect', 'engineering firm', 'insurance', 'broker', 'notary', 'clients', 'client', 'proposals', 'retainer', 'billable'] },
+  { id: 'professional', noun: 'firm', plural: 'clients', actors: 'clients', words: ['law firm', 'lawyer', 'attorney', 'accountant', 'accounting', 'bookkeeping', 'consultant', 'consulting', 'agency', 'architect', 'engineering firm', 'insurance', 'broker', 'notary', 'client', 'proposal', 'retainer', 'billable'] },
   { id: 'construction', noun: 'company', plural: 'clients', actors: 'crews and clients', words: ['construction', 'contractor', 'crew', 'crews', 'site', 'job site', 'jobsite', 'builder', 'renovation', 'blueprints', 'subcontractor', 'materials', 'estimates', 'bids'] },
-  { id: 'manufacturing', noun: 'plant', plural: 'customers', actors: 'operators', words: ['factory', 'manufacturing', 'production', 'assembly', 'machines', 'plant', 'workshop', 'fabrication', 'batches', 'quality control', 'parts'] },
+  { id: 'manufacturing', noun: 'plant', plural: 'customers', actors: 'operators', words: ['factory', 'manufacturing', 'production', 'assembly', 'machines', 'plant', 'workshop', 'fabrication', 'batches', 'quality control'] },
   { id: 'agriculture', noun: 'farm', plural: 'buyers', actors: 'farm workers', words: ['farm', 'farmers', 'crop', 'crops', 'harvest', 'livestock', 'cattle', 'greenhouse', 'agriculture', 'agricultural', 'irrigation', 'produce', 'fishing', 'fishermen', 'cooperative'] },
   { id: 'events', noun: 'events business', plural: 'attendees', actors: 'attendees and organizers', words: ['events', 'event', 'wedding', 'weddings', 'conference', 'festival', 'tickets', 'ticketing', 'venue', 'attendees', 'rsvp', 'planner', 'dj', 'photographer'] },
-  { id: 'tourism', noun: 'tour business', plural: 'travelers', actors: 'travelers and guides', words: ['tours', 'tour', 'excursions', 'excursion', 'travel', 'travelers', 'tourists', 'guides', 'boat', 'charter', 'diving', 'dive shop', 'surf', 'rentals'] },
+  { id: 'tourism', noun: 'tour business', plural: 'travelers', actors: 'travelers and guides', words: ['tour', 'excursion', 'travel', 'traveler', 'tourist', 'guide', 'boat', 'charter', 'diving', 'dive shop', 'surf'] },
   { id: 'finance', noun: 'business', plural: 'clients', actors: 'clients', words: ['loans', 'lending', 'microfinance', 'credit', 'remittance', 'fintech', 'bank', 'savings', 'collections', 'installments', 'cooperativa'] },
-  { id: 'transport', noun: 'transport business', plural: 'riders', actors: 'riders and drivers', words: ['taxi', 'rides', 'ride', 'passengers', 'shuttle', 'bus', 'moto', 'motoconcho', 'transport', 'transportation', 'car rental', 'rent a car'] },
+  { id: 'transport', noun: 'transport business', plural: 'riders', actors: 'riders and drivers', words: ['taxi', 'ride', 'passenger', 'shuttle', 'bus', 'moto', 'motoconcho', 'transport', 'transportation', 'car rental', 'rent a car', 'rental car'] },
   { id: 'public', noun: 'institution', plural: 'citizens', actors: 'citizens and staff', words: ['government', 'municipality', 'ministry', 'public', 'citizens', 'permits', 'licenses', 'city hall', 'ayuntamiento', 'agency'] },
 ]
 
@@ -138,7 +143,8 @@ export const OFF_TOPIC_PATTERNS = [
   /\bhow (do i|to|can i) (cook|bake|lose weight|gain weight|fix my car|get a visa|get rich|become famous|tie a|hack|cheat)\b/i,
   /\b(solve|calculate|compute) (this|the|for|my|x)\b/i,
   /\b(medical|legal|tax|financial|investment|relationship|dating) advice\b/i,
-  /\bmy (symptoms|doctor|lawyer|landlord|girlfriend|boyfriend|wife|husband|ex)\b/i,
+  /\bmy (symptoms|doctor|lawyer|therapist|girlfriend|boyfriend|wife|husband|ex) (is|was|says|said|wants|left|cheated|won't|doesn't|keeps|thinks|told)\b/i,
+  /\b(love|like|loved) (your|the|this) (site|website|work|design|page)\b|\bgreat (job|work|site)\b|\bnice (site|work|website)\b/i,
   /\brecommend( me)? (a |some )?(movie|movies|book|books|show|shows|series|restaurant|restaurants|song|songs)\b/i,
   /\bhomework\b/i,
   /\b(diagnose|diagnosis|prescription|dosage)\b/i,
@@ -175,7 +181,8 @@ export const SUPPORT_PATTERNS = [
 ]
 
 export const INJECTION_PATTERNS = [
-  /\bignore (all |any |the )?(previous|prior|above|earlier|preceding) (instructions|prompts|rules|messages)\b/i,
+  /\bignore (all |any |the |your |these |those |my )?(previous |prior |above |earlier |preceding )?(instructions|prompts|rules|messages|guidelines)\b/i,
+  /\b(print|show|output|repeat|reveal|display) (me )?(your|the) (system )?(prompt|instructions|rules)\b/i,
   /\b(you are now|from now on you are|act as|pretend (to be|you are)|roleplay as)\b/i,
   /\b(system prompt|developer mode|dan mode|jailbreak|reveal your (prompt|instructions)|disregard (your|the|all) (instructions|rules|guidelines))\b/i,
   /\b(repeat (the|your) (instructions|prompt)|what are your instructions)\b/i,
@@ -194,7 +201,20 @@ export const SOLUTION_LEADS = [
 ]
 
 // Words that indicate the visitor is describing their own operation.
-export const OPERATION_PHRASE = /\b(for|at|in|run|runs|running|own|owns|manage|managing|manages|help|helps|helping|grow|growing|improve|improving) (my|our|a|an|the) (small |family |local |growing |new |little |busy |two-person |family-run )?([a-z][a-z'-]+(?: [a-z][a-z'-]+){0,4})/i
+export const OPERATION_PHRASE = /\b(for|at|in|run|runs|running|own|owns|manage|managing|manages|help|helps|helping|grow|growing|improve|improving|have|has) (my|our|a|an|the|two|three|four|five|six|several|\d+) (small |family |local |growing |new |little |busy |two-person |family-run |own )?([a-z][a-z'-]+(?: [a-z][a-z'-]+){0,4})/i
+
+// Words never repeated back in the engine's voice.
+export const INTENSIFIERS = /\b(damn|damned|goddamn|stupid|fucking|freaking|frigging|bloody|crappy|shitty|dumb|stinking|whole)\s+/gi
+
+// A person describing themselves by role rather than a business: address them as "you".
+export const ROLE_WORDS = /\b(i am|i'm|im|as) (a|an) (landlord|photographer|teacher|tutor|plumber|electrician|dentist|doctor|lawyer|accountant|consultant|freelancer|contractor|designer|architect|coach|trainer|therapist|nurse|realtor|broker|farmer|baker|chef|mechanic|barber|stylist|veterinarian|vet|pharmacist|notary|translator|writer|musician|dj)\b|\bi am a (small|solo|one-person)\b/i
+
+// The visitor is building something for OTHER businesses or the public, not for their own operation.
+export const PRODUCT_FOR_OTHERS = /\b(saas|software for|platform for|marketplace|app for (people|users|anyone|everyone|businesses|companies|restaurants|clinics|schools|dentists|doctors|landlords|drivers|farmers|tourists|travelers|students|parents)|(for|to) (dentists|doctors|restaurants|clinics|hotels|schools|landlords|lawyers|gyms|salons|farmers|drivers|businesses|companies|smbs|small businesses|retailers|shops|stores|colmados|nonprofits|municipalities) (to|that|who|so)|like uber|like airbnb|like amazon|uber for|airbnb for|sell (it|this|the app|the software|subscriptions) to)\b/i
+
+// Negation within a few words before a tool name means the visitor rejected it.
+export const NEGATION_BEFORE = "(?:\\bnot|\\bno|don't|dont|do not|never|instead of|rather than|without|not another|no more)\\s+(?:a |an |the |another |any |just )?(?:[a-z'-]+\\s+){0,2}?"
+
 
 // Nouns that make a captured phrase read as "the visitor's operation".
 export const ORG_NOUNS = [

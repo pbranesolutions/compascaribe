@@ -70,7 +70,24 @@ export function sentence(text) {
 }
 
 export function stripTerminal(text) {
-  return String(text || '').trim().replace(/[.!?…]+$/, '')
+  return String(text || '').trim().replace(/[.!?]+$/, '')
+}
+
+/** First person → second person inside a clause the visitor wrote. */
+export function toYou(text) {
+  return String(text || '')
+    .replace(/\bI am\b/g, 'you are').replace(/\bI'm\b/g, "you're").replace(/\bI was\b/g, 'you were')
+    .replace(/\bI\b/g, 'you').replace(/\bwe are\b/gi, 'you are').replace(/\bwe\b/gi, 'you')
+    .replace(/\b(my|our)\b/gi, 'your').replace(/\b(me|us)\b/gi, 'you').replace(/\b(myself|ourselves)\b/gi, 'yourself')
+    .replace(/\bmine\b/gi, 'yours').replace(/\bam\b/g, 'are')
+}
+
+const VERB_START = /^(stop|make|get|see|know|let|have|track|keep|reduce|avoid|cut|save|give|send|show|find|handle|manage|book|schedule|sell|reach|grow|hire|pay|bill|collect|answer|respond|confirm|remind|notify|automate|replace|turn|bring|run|open|close|deliver|ship|print|record|capture|store|share|sync|update|remove|eliminate|prevent|win|offer|provide|improve|speed|free|simplify|organize|organise|plan|assign|dispatch|accept|approve|review|control|measure|report|publish|launch|build|create|design|help|allow|enable|ensure|guarantee|take|put|move|stay|be|become|spend|lose|never|always|serve|follow|catch|fill|generate|coordinate|centralize|centralise|digitize|digitise|connect|integrate|communicate|receive|process|register|monitor|check|verify|secure|protect|cover|charge|invoice|quote|order|count|forecast|predict|match|rank|sort|filter|search|locate|map|route|guide|train|teach|onboard|retain|convert|attract|understand|decide|prioritize|prioritise)\b/i
+
+/** Does the visitor's text read as a verb phrase ("stop losing orders") rather than a clause ("orders get lost")? */
+export function isVerbPhrase(text) {
+  const t = stripTerminal(text).replace(/^(to|we need to|i need to|we want to|i want to|we should|i should|be able to)\s+/i, '')
+  return VERB_START.test(t)
 }
 
 /** Lowercase a visitor's own words for embedding mid-sentence, keeping proper nouns we cannot detect. */

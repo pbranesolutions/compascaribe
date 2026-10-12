@@ -7,7 +7,7 @@
 // answers they gave supply the why and the test.
 
 import { LIMITS } from '../context.js'
-import { cap, embed, lower, sentence, stripTerminal, trimTo } from './language.js'
+import { cap, embed, isVerbPhrase, lower, sentence, stripTerminal, toYou, trimTo } from './language.js'
 import { OBJECTIVES, inferObjectiveId, objectiveSlots } from './questions.js'
 import { subjectOrFallback } from './understanding.js'
 
@@ -34,10 +34,14 @@ function resolveWho(u, answers) {
 
 function resolveActors(u, answers) {
   const p = answers.people
-  if (p?.text) return embed(trimTo(p.text, 40))
+  // Own words about people name individuals; templates need a plural role, so
+  // the words themselves live in the ledger and the record, not in the prose.
+  if (p?.text) return 'the people you named'
   if (p?.value?.actors && p.value.actors !== 'you' && p.value.actors !== 'your team') return p.value.actors
   return u.actors || 'the people you serve'
 }
+
+const HAS_FINITE_VERB = /\b(is|are|was|were|use|uses|used|do|does|did|have|has|had|write|writes|call|calls|go|goes|get|gets|come|comes|live|lives|handle|handles|track|tracks|keep|keeps|run|runs|manage|manages|sit|sits|happen|happens|depend|depends|rely|relies|work|works|send|sends|text|texts|ask|asks|forget|forgets|lose|loses|copy|copies|type|types|check|checks|answer|answers|need|needs|want|wants|know|knows|see|sees|take|takes|make|makes|try|tries|end|ends|fall|falls|arrive|arrives|exist|exists|stay|stays|isn't|aren't|don't|doesn't|can't|cannot|won't)\b/i
 
 /**
  * @param {import('./understanding.js').Understanding} u
@@ -55,12 +59,21 @@ export function deriveParts(u, answers, f) {
   let objectiveId
 
   if (obj?.text) {
-    // The visitor's own words are the objective. Keep them nearly verbatim.
+    // The visitor's own words are the objective. A verb phrase ("stop losing
+    // deposits") is the capability; a clause ("patients stop showing up late")
+    // is the outcome, with an inferred capability in front of it.
     objectiveId = 'custom'
-    const own = stripTerminal(obj.text)
-    capability = lower(own.replace(/^(to|we need to|i need to|we want to|i want to)\s+/i, ''))
-    outcome = u.purposeKind === 'result' ? u.purpose : 'the result you described actually happens'
-    title = trimTo(cap(capability), 48)
+    const own = toYou(stripTerminal(obj.text))
+    if (isVerbPhrase(own)) {
+      capability = lower(own.replace(/^(to|you need to|you want to|you should|be able to)\s+/i, ''))
+      outcome = u.purposeKind === 'result' && u.purpose ? u.purpose : 'the result you described actually happens'
+      title = trimTo(cap(capability), 48)
+    } else {
+      const inferred = OBJECTIVES[inferObjectiveId(u, f)] || OBJECTIVES.missed
+      capability = inferred.phrase(slots)
+      outcome = lower(own)
+      title = trimTo(cap(own), 48)
+    }
   } else {
     objectiveId = obj?.value?.objectiveId || inferObjectiveId(u, f)
     const o = OBJECTIVES[objectiveId] || OBJECTIVES.missed
@@ -77,14 +90,18 @@ export function deriveParts(u, answers, f) {
 
   const c = answers.current
   let current = null
-  if (c?.text) current = embed(trimTo(c.text, 90))
-  else if (c?.value?.clause) current = c.value.clause
+  if (c?.text) {
+    const own = toYou(embed(c.text))
+    current = HAS_FINITE_VERB.test(own) ? own : `${subjectOrFallback(u, 'the work')} ${u.subjectPlural ? 'run' : 'runs'} on ${own}`
+  } else if (c?.value?.clause) current = c.value.clause
   else if (u.painClause) current = `${subjectOrFallback(u)} ${u.painClause}`
 
   const s = answers.success
   let success = null
-  if (s?.text) success = embed(trimTo(s.text, 90))
-  else if (s?.value?.success) success = lower(stripTerminal(s.value.success))
+  if (s?.text) {
+    const own = toYou(embed(s.text))
+    success = isVerbPhrase(own) && !HAS_FINITE_VERB.test(own) ? `you can ${own}` : own
+  } else if (s?.value?.success) success = lower(stripTerminal(s.value.success))
 
   return { who, capability, outcome, current, success, title, objectiveId }
 }

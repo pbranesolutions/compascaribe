@@ -169,3 +169,79 @@ test('context helpers', () => {
 test('the remote provider is explicitly unavailable in the prototype', () => {
   assert.throws(() => createProvider({ mode: 'remote' }), /not available/)
 })
+
+async function openFor(text) {
+  let ctx = withSubmission(createContext(), text)
+  ctx = withQualification(ctx, await provider.qualify(ctx))
+  const { exchanges } = await provider.open(ctx)
+  return { ctx: withExchanges(ctx, exchanges), exchanges }
+}
+
+test("a product for other businesses is not addressed as the visitor's own practice", async () => {
+  const { exchanges } = await openFor('I want to build a SaaS for dentists to manage their appointments')
+  assert.match(exchanges[0].reflection, /for others to use/)
+  assert.doesNotMatch(exchanges[0].reflection, /your practice/)
+  assert.ok(exchanges.some(e => e.focus === 'scope'), 'asks who it is for')
+})
+
+test('a rejected tool is acknowledged, not asserted', async () => {
+  const { exchanges } = await openFor('Not a chatbot. We need a way for patients to confirm appointments by text.')
+  assert.match(exchanges[0].reflection, /^Not a chatbot, then/)
+})
+
+test('a self-described role is addressed as you, never as a portfolio', async () => {
+  let { ctx } = await openFor('I am a landlord with 12 apartments and tenants text me about repairs, I forget half of them')
+  for (const e of ctx.exchanges) {
+    const pick = e.options[0]
+    const r = await provider.answer(ctx, e.id, { optionId: pick.id, label: pick.label, text: null, value: pick.value })
+    ctx = withExchanges(ctx, r.exchanges)
+  }
+  const { statement } = await provider.compose(ctx)
+  assert.match(statement.text, /^This project gives you /)
+  assert.doesNotMatch(statement.text, /portfolio/)
+})
+
+test('core-market phrasing reaches discovery with the right subject', async () => {
+  const { ctx, exchanges } = await openFor('I own three colmados in Santiago and I never know which one is out of rice until a customer complains')
+  assert.ok(ctx.qualification.tier >= 3)
+  assert.match(exchanges[0].reflection, /stock/)
+})
+
+test('own words as a clause become the outcome, never a broken verb phrase', async () => {
+  let { ctx } = await openFor('I want a website')
+  const obj = ctx.exchanges[0]
+  let r = await provider.answer(ctx, obj.id, { optionId: null, label: 'patients stop showing up late', text: 'patients stop showing up late', value: null })
+  ctx = withExchanges(ctx, r.exchanges)
+  for (const e of ctx.exchanges.slice(1)) {
+    const text = e.focus === 'current' ? 'a mix of WhatsApp groups and a Google Sheet nobody updates' : null
+    const ans = text ? { optionId: null, label: text, text, value: null } : { optionId: e.options[0].id, label: e.options[0].label, text: null, value: e.options[0].value }
+    r = await provider.answer(ctx, e.id, ans)
+    ctx = withExchanges(ctx, r.exchanges)
+  }
+  const { statement } = await provider.compose(ctx)
+  assert.match(statement.text, /so that patients stop showing up late/)
+  assert.doesNotMatch(statement.text, /way to patients/)
+  const plain = await provider.refine(ctx, 'plain')
+  assert.match(plain.statement.text, /Right now the work runs on a mix of WhatsApp groups/)
+})
+
+test('first person in a stated purpose is converted, never lowercased "i"', async () => {
+  const { exchanges } = await openFor('We want a portal so I am not the one answering every tenant question')
+  assert.match(exchanges[0].reflection, /you are not the one answering/)
+  assert.doesNotMatch(exchanges[0].reflection, /\bi am\b/)
+})
+
+test('growth labels never expose fallback slot text', async () => {
+  const { exchanges } = await openFor('We want to grow without hiring more people, everything is manual')
+  for (const e of exchanges) for (const o of e.options) {
+    assert.doesNotMatch(o.label, /the people you serve with/)
+    assert.doesNotMatch(o.label, /More the work/)
+    assert.ok(o.label.length <= 46, o.label)
+  }
+})
+
+test('synonyms never double up as a subject', async () => {
+  const { exchanges } = await openFor('Juan Pérez sells car parts and tracks sales and invoicing on paper')
+  assert.doesNotMatch(exchanges[0].reflection, /sales and sales|invoices and invoicing/)
+  assert.doesNotMatch(exchanges[0].reflection, /your plant/)
+})
