@@ -1,8 +1,10 @@
 // Shared UI pieces. Every component is a function returning a DOM element.
+// Interactive elements carry `data-focus-key` so the renderer can restore
+// focus to "the same control" after a re-render.
 
 import { LIMITS } from '../domain/context.js'
-import { FOCUS_TITLES } from '../domain/discovery/questions.js'
-import { ROUTE } from '../app/journey.js'
+import { FOCUS_TITLES } from '../domain/discovery/vocabulary.js'
+import { ROUTE } from '../app/route.js'
 import { clear, h } from './dom.js'
 import { capacityOf, fitText, paginateToFit } from './fit.js'
 
@@ -25,6 +27,12 @@ export function optionCapacity() {
   return window.innerWidth >= 600 && h >= 700 ? 4 : 3
 }
 
+/** The focus key of the element that currently has focus, if any. */
+export function activeFocusKey() {
+  const el = document.activeElement
+  return el && el.dataset ? el.dataset.focusKey || null : null
+}
+
 // --- top bar ---------------------------------------------------------------
 
 export function topBar(state, actions) {
@@ -33,30 +41,34 @@ export function topBar(state, actions) {
     const past = i < routeIndex
     const now = i === routeIndex
     const declined = state.stage === 'declined' && r.id === 'discovery'
+    const status = now ? 'current step' : past ? 'completed' : 'ahead'
     const cls = `route-seg${past ? ' is-past' : ''}${now ? ' is-now' : ''}${declined ? ' is-cap' : ''}`
-    const props = { class: cls, style: { '--seg': STAGE_COLORS[r.id] }, 'aria-current': now ? 'step' : null }
-    if (past && r.id === 'discovery' && state.ctx.exchanges.length) {
-      return h('button', { ...props, type: 'button', title: r.label, 'aria-label': `Back to ${r.label}`, onClick: () => actions.revisit(state.ctx.exchanges.length - 1) })
+    const sr = h('span', { class: 'sr-only' }, `${r.label}, ${status}`)
+    const props = { class: cls, style: { '--seg': STAGE_COLORS[r.id] }, 'aria-current': now ? 'step' : null, title: r.label }
+    let inner
+    if (past && ((r.id === 'discovery' && state.ctx.exchanges.length) || (r.id === 'statement' && state.ctx.statement) || (r.id === 'continue' && state.ctx.statement))) {
+      inner = h('button', { ...props, type: 'button', 'data-focus-key': `route:${r.id}`, onClick: () => actions.jump(r.id) }, sr)
+    } else {
+      inner = h('span', props, sr)
     }
-    if (past && r.id === 'statement' && state.ctx.statement) {
-      return h('button', { ...props, type: 'button', title: r.label, 'aria-label': `Back to ${r.label}`, onClick: () => actions.back() })
-    }
-    return h('span', { ...props, title: r.label })
+    return h('span', { role: 'listitem', class: 'route-item' }, inner)
   })
 
   const readout = readoutFor(state)
   const hasWork = Boolean(state.ctx.submission) && state.stage !== 'welcome'
+  const understandingTarget = state.stage === 'done' || state.stage === 'handoff' ? 'record' : 'review'
 
   return h('header', { class: 'bar', role: 'banner' },
     h('div', { class: 'brand' }, 'Compás Caribe',
-      h('small', null, h('button', { type: 'button', class: 'link', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
+      h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
     h('nav', { class: 'bar-mid', 'aria-label': 'Journey' },
-      h('div', { class: 'route', role: 'list', 'aria-label': 'Route' }, segs)),
+      h('div', { class: 'route', role: 'list', 'aria-label': 'Route through the journey' }, segs)),
     h('div', { class: 'bar-end' },
       readout ? h('span', { class: 'readout', html: readout }) : null,
-      hasWork && state.ctx.exchanges.length ? h('button', { type: 'button', class: 'link bar-understanding', onClick: () => actions.openOverlay(state.stage === 'done' || state.stage === 'handoff' ? 'record' : 'review') }, 'Understanding') : null,
-      hasWork ? h('button', { type: 'button', class: 'link', onClick: () => actions.reset() }, 'Start over') : null),
-    h('div', { class: 'route-bar', 'aria-hidden': 'true', style: { display: undefined } },
+      h('button', { type: 'button', class: 'link bar-notes', 'data-focus-key': 'bar:notes-tiny', onClick: () => actions.openOverlay('notes', 0, 'bar:notes-tiny') }, 'Simulated'),
+      hasWork && state.ctx.exchanges.length ? h('button', { type: 'button', class: 'link bar-understanding', 'data-focus-key': 'bar:understanding', onClick: () => actions.openOverlay(understandingTarget, 0, 'bar:understanding') }, 'Understanding') : null,
+      hasWork ? h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:reset', onClick: () => actions.reset() }, 'Start over') : null),
+    h('div', { class: 'route-bar', 'aria-hidden': 'true' },
       h('div', { style: { display: 'grid', gridAutoFlow: 'column', gap: '3px', height: '3px' } },
         ROUTE.map((r, i) => h('span', { style: { background: i < routeIndex ? STAGE_COLORS[r.id] : i === routeIndex ? 'var(--ink)' : 'var(--hair)', outline: i < routeIndex ? '1px solid var(--ink)' : 'none', outlineOffset: '-1px', borderRadius: '2px' } })))),
   )
@@ -83,7 +95,7 @@ function readoutFor(state) {
 export function yourWords(state, actions, { lines = 3 } = {}) {
   const text = state.ctx.submission?.text || ''
   const extra = state.ctx.clarifications.length ? ` + ${state.ctx.clarifications.length} addition${state.ctx.clarifications.length > 1 ? 's' : ''}` : ''
-  return h('button', { type: 'button', class: 'words', style: { textAlign: 'left', display: 'grid', gap: '4px', minWidth: 0 }, onClick: () => actions.openOverlay('words'), 'aria-label': 'Read your words in full' },
+  return h('button', { type: 'button', class: 'words', 'data-focus-key': 'words', style: { textAlign: 'left', display: 'grid', gap: '4px', minWidth: 0 }, onClick: () => actions.openOverlay('words', 0, 'words'), 'aria-label': 'Read your words in full' },
     h('span', { class: 'label' }, 'Your words', extra),
     h('span', { class: 'prose', 'data-clamp': 'preview', style: { fontSize: '15px', lineHeight: '1.3', display: '-webkit-box', WebkitLineClamp: String(lines), WebkitBoxOrient: 'vertical', overflow: 'hidden' } }, text))
 }
@@ -97,12 +109,16 @@ export function skeleton(state, actions, { fit = '14,24', interactive = true } =
     const val = sk ? sk[key] : null
     const focus = sk ? sk.focusFor[key] : null
     const ex = focus ? exByFocus[focus] : null
-    if (!val) return h('span', { class: 'slot is-blank', 'aria-label': `${SLOT_LABEL[key]}: not yet known` }, h('span', { class: 'lbl' }, SLOT_LABEL[key]))
+    if (!val) {
+      return h('span', { class: 'slot is-blank' },
+        h('span', { class: 'sr-only' }, `${SLOT_LABEL[key]}: not yet known`),
+        h('span', { class: 'lbl', 'aria-hidden': 'true' }, SLOT_LABEL[key]))
+    }
     if (interactive && ex) {
       // A span with button semantics: real <button>s cannot wrap inline across lines.
       const idx = state.ctx.exchanges.indexOf(ex)
       return h('span', {
-        class: 'slot', role: 'button', tabIndex: 0,
+        class: 'slot', role: 'button', tabIndex: 0, 'data-focus-key': `slot:${key}`,
         'aria-label': `${SLOT_LABEL[key]}: ${val}. Revisit this answer.`,
         onClick: () => actions.revisit(idx),
         onKeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); actions.revisit(idx) } },
@@ -122,7 +138,7 @@ export function ledger(state, actions, { interactive = true, numbered = true } =
       h('span', { class: 'num' }, numbered ? String(i + 1).padStart(2, '0') : ''),
       h('span', null, h('span', { class: 'k' }, FOCUS_TITLES[e.focus]), h('span', { class: 'v', 'data-clamp': interactive ? 'preview' : null }, v || 'not yet answered')),
     ]
-    if (interactive) return h('button', { ...props, type: 'button', onClick: () => actions.revisit(i), 'aria-label': `${FOCUS_TITLES[e.focus]}: ${v || 'not yet answered'}. Revisit.` }, inner)
+    if (interactive) return h('button', { ...props, type: 'button', 'data-focus-key': `ledger:${e.focus}`, onClick: () => actions.revisit(i), 'aria-label': `${FOCUS_TITLES[e.focus]}: ${v || 'not yet answered'}. Revisit.` }, inner)
     return h('div', props, inner)
   })
   return h('div', { class: 'ledger' }, rows)
@@ -136,7 +152,7 @@ export function understandingPly(state, actions) {
     children.push(h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto', gap: '18px' } }, ledger(state, actions), yourWords(state, actions, { lines: 3 })))
     children.push(h('div', { class: 'ply-foot' }, h('span', { class: 'label' }, 'Select a row to change that answer')))
   } else if (s === 'continue') {
-    children.push(h('div', { class: 'ply-head' }, h('span', { class: 'label' }, h('b', null, 'Your statement'), ' · travels with you')))
+    children.push(h('div', { class: 'ply-head' }, h('span', { class: 'label' }, h('b', null, 'Your statement'), ' · goes with you')))
     children.push(h('div', { class: 'ply-body', style: { gridTemplateRows: 'minmax(0, 1fr) auto' } },
       h('p', { class: 'statement', 'data-fit': '14,22', style: { margin: 0 } }, state.ctx.statement?.text || ''),
       pageTwoStub(state)))
@@ -144,11 +160,11 @@ export function understandingPly(state, actions) {
   } else if (s === 'handoff' || s === 'done') {
     children.push(h('div', { class: 'ply-head' }, h('span', { class: 'label' }, h('b', null, 'Decision Channel'), ' · intake record · simulated')))
     children.push(h('div', { class: 'ply-body', style: { gridTemplateRows: 'minmax(0, 1fr)' } }, recordRows(state, actions)))
-    children.push(h('div', { class: 'ply-foot' }, h('button', { type: 'button', class: 'link', onClick: () => actions.openOverlay('record') }, 'Read the full record')))
+    children.push(h('div', { class: 'ply-foot' }, h('button', { type: 'button', class: 'link', 'data-focus-key': 'record:open', onClick: () => actions.openOverlay('record', 0, 'record:open') }, 'Read the full record')))
   } else {
-    children.push(h('div', { class: 'ply-head' }, h('span', { class: 'label' }, h('b', null, 'Understanding so far'), ' · simulated')))
     const sk = skeleton(state, actions, { fit: '14,26' })
     sk.style.maxHeight = 'var(--sk-max)'
+    children.push(h('div', { class: 'ply-head' }, h('span', { class: 'label' }, h('b', null, 'Understanding so far'), ' · simulated')))
     children.push(h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto' } }, yourWords(state, actions, { lines: 3 }), sk))
     children.push(h('div', { class: 'ply-foot' }, h('span', { class: 'label' }, state.ctx.exchanges.some(e => e.answer) ? 'Select a filled part to revisit it' : 'Each answer fills in a part of the statement')))
   }
@@ -172,7 +188,7 @@ export function recordRows(state, actions) {
     ...state.ctx.exchanges.filter(e => e.answer).map((e, i) => [String(i + 3).padStart(2, '0'), FOCUS_TITLES[e.focus], e.answer.text || e.answer.label]),
   ]
   return h('div', { class: 'ledger' }, rows.map(([n, k, v]) =>
-    h('button', { type: 'button', class: 'row', onClick: () => actions.openOverlay('record'), 'aria-label': `${k}: ${v}. Read the full record.` },
+    h('button', { type: 'button', class: 'row', 'data-focus-key': `record:${n}`, onClick: () => actions.openOverlay('record', 0, `record:${n}`), 'aria-label': `${k}: ${v}. Read the full record.` },
       h('span', { class: 'num' }, n),
       h('span', null, h('span', { class: 'k' }, k), h('span', { class: 'v', 'data-clamp': 'preview' }, v)))))
 }
@@ -180,8 +196,9 @@ export function recordRows(state, actions) {
 export function strip(state, actions) {
   const s = state.stage
   if (s === 'continue' || s === 'handoff' || s === 'done') {
-    return h('button', { type: 'button', class: 'strip', onClick: () => actions.openOverlay(s === 'continue' ? 'review' : 'record'), 'aria-label': 'Review your project' },
-      h('span', { class: 'strip-labels' }, h('span', { class: 'is-filled' }, s === 'continue' ? 'Your statement' : 'Decision Channel record'), h('span', { class: 'strip-more' }, 'Review ›')),
+    const target = s === 'continue' ? 'review' : 'record'
+    return h('button', { type: 'button', class: 'strip', 'data-focus-key': 'strip', onClick: () => actions.openOverlay(target, 0, 'strip'), 'aria-label': 'Review your project' },
+      h('span', { class: 'strip-labels', 'data-clamp': 'preview' }, h('span', { class: 'is-filled' }, s === 'continue' ? 'Your statement' : 'Decision Channel record'), h('span', { class: 'strip-more' }, 'Review ›')),
       h('span', { class: 'strip-line', 'data-clamp': 'preview' }, state.ctx.statement?.text || ''))
   }
   const labels = state.ctx.exchanges.map(e => h('span', { class: e.answer ? 'is-filled' : '' }, FOCUS_TITLES[e.focus]))
@@ -196,18 +213,21 @@ export function strip(state, actions) {
     sentence.dataset.clamp = 'preview'
     delete sentence.dataset.fit
   }
-  return h('button', { type: 'button', class: 'strip', onClick: () => actions.openOverlay('review'), 'aria-label': 'Understanding so far. Open to review or revisit.' },
-    h('span', { class: 'strip-labels' }, labels.length ? labels : h('span', { class: 'is-filled' }, 'Understanding so far'), h('span', { class: 'strip-more' }, 'Simulated ›')),
+  return h('button', { type: 'button', class: 'strip', 'data-focus-key': 'strip', onClick: () => actions.openOverlay('review', 0, 'strip'), 'aria-label': 'Understanding so far: review or revisit your answers' },
+    h('span', { class: 'strip-labels', 'data-clamp': 'preview' }, labels.length ? labels : h('span', { class: 'is-filled' }, 'Understanding so far'), h('span', { class: 'strip-more' }, 'Review ›')),
     wide ? sentence : line)
 }
 
 // --- controls ---------------------------------------------------------------
 
 /**
- * Fixed-height textarea with a dynamic maxlength: it never holds more than it
- * can show. `onInput(value)` is called on every change.
+ * Fixed-height textarea that never scrolls. It holds at most what it can show
+ * (dynamic maxlength); when a prefilled or resized text is longer than the
+ * box, it shows folios: whole-line pages that follow the caret, flipped with
+ * a pager. The textarea itself has no padding or border, so a page is an
+ * exact number of lines; the frame around it carries the look.
  */
-export function composer({ id, value, limit, placeholder, onInput, onSubmit, label, hint, rows, autofocus, lang = 'en' }) {
+export function composer({ id, value, limit, placeholder, onInput, onSubmit, label, hint, rows, autofocus, enterSubmits = false, lang = 'en' }) {
   const count = h('span', { class: 'count' })
   const note = h('span', { class: 'note' }, hint || '')
   const folio = h('span', { class: 'folio' })
@@ -216,70 +236,67 @@ export function composer({ id, value, limit, placeholder, onInput, onSubmit, lab
     'aria-label': label,
     placeholder,
     maxLength: limit,
-    enterkeyhint: 'enter',
+    enterkeyhint: enterSubmits ? 'done' : 'enter',
     autocomplete: 'off',
     autocapitalize: 'sentences',
     spellcheck: 'true',
     lang,
     'data-autofocus': autofocus && !isTouch() ? 'true' : null,
+    'data-focus-key': `composer:${id}`,
     rows: rows || 3,
   })
   ta.value = value || ''
+  const frame = h('div', { class: 'ta-frame' }, ta)
+
   let capacity = limit
-  // Folios: when the text is longer than the box, the box shows one page at a
-  // time, following the caret. Pages are flipped with the pager, never scrolled.
+  let lineH = 26
+  let lines = 3
+  let pageIndex = 0
+
   const geometry = () => {
-    const cs = getComputedStyle(ta)
-    const lh = parseFloat(cs.lineHeight) || 24
-    const padT = parseFloat(cs.paddingTop) || 0
-    const padB = parseFloat(cs.paddingBottom) || 0
-    const inner = ta.clientHeight - padT - padB
-    const lines = Math.max(1, Math.floor(inner / lh))
-    const pageH = lines * lh
-    const contentH = ta.scrollHeight - padT - padB
-    const overflowing = ta.scrollHeight > ta.clientHeight + 1
+    const pageH = lines * lineH
+    const contentH = ta.scrollHeight
+    const overflowing = contentH > ta.clientHeight + 1
     const total = overflowing ? Math.max(1, Math.ceil(contentH / pageH)) : 1
-    return { lh, padT, pageH, total }
+    return { pageH, total }
   }
   const caretY = () => {
     const cs = getComputedStyle(ta)
     const m = document.createElement('div')
-    for (const prop of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'padding', 'border', 'boxSizing', 'width']) m.style[prop] = cs[prop]
-    m.style.cssText += ';position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:anywhere;height:auto'
+    for (const prop of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing']) m.style[prop] = cs[prop]
+    m.style.cssText += ';position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:anywhere;height:auto;padding:0;border:0'
     m.style.width = `${ta.clientWidth}px`
-    m.textContent = ta.value.slice(0, ta.selectionStart || 0) + '\u200b'
+    m.textContent = ta.value.slice(0, ta.selectionStart || 0) + '​'
     document.body.appendChild(m)
-    const y = m.scrollHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0)
+    const y = m.scrollHeight
     m.remove()
     return y
   }
-  let pageIndex = 0
   const showPage = (p, { moveCaret = false } = {}) => {
     const g = geometry()
     pageIndex = Math.max(0, Math.min(p, g.total - 1))
-    // Align the page to line boundaries: after page 0 the top padding scrolls away.
-    const top = () => (pageIndex === 0 ? 0 : g.padT + pageIndex * g.pageH)
-    ta.scrollTop = top()
+    const top = pageIndex * g.pageH
+    ta.scrollTop = top
     if (g.total > 1) {
       ta.dataset.clamp = 'folio'
-      folio.replaceChildren(pager({ page: pageIndex, total: g.total, onPage: (np) => showPage(np, { moveCaret: true }), label: 'Page' }))
+      folio.replaceChildren(pager({ page: pageIndex, total: g.total, onPage: (np) => showPage(np, { moveCaret: true }), label: 'Page', focusKey: `folio:${id}` }))
     } else {
       delete ta.dataset.clamp
       folio.replaceChildren()
     }
     if (moveCaret && g.total > 1) {
       // Put the caret on the first line of the chosen page so typing stays there.
-      const target = pageIndex * g.pageH
       let lo = 0
       let hi = ta.value.length
       const probe = (i) => { ta.setSelectionRange(i, i); return caretY() }
       while (hi - lo > 1) {
         const mid = (lo + hi) >> 1
-        if (probe(mid) - geometry().lh < target) lo = mid
+        if (probe(mid) - lineH < top) lo = mid
         else hi = mid
       }
-      ta.setSelectionRange(pageIndex === 0 ? 0 : hi, pageIndex === 0 ? 0 : hi)
-      ta.scrollTop = top()
+      const at = pageIndex === 0 ? 0 : hi
+      ta.setSelectionRange(at, at)
+      ta.scrollTop = top
       ta.focus({ preventScroll: true })
     }
   }
@@ -306,27 +323,32 @@ export function composer({ id, value, limit, placeholder, onInput, onSubmit, lab
   })
   ta.addEventListener('click', followCaret)
   ta.addEventListener('keyup', (e) => { if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End' || e.key === 'PageUp' || e.key === 'PageDown') followCaret() })
-  ta.addEventListener('scroll', () => { const g = geometry(); const want = pageIndex === 0 ? 0 : g.padT + pageIndex * g.pageH; if (Math.abs(ta.scrollTop - want) > 1) ta.scrollTop = want })
+  ta.addEventListener('scroll', () => { const want = pageIndex * geometry().pageH; if (Math.abs(ta.scrollTop - want) > 1) ta.scrollTop = want })
   ta.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (((e.ctrlKey || e.metaKey) && e.key === 'Enter') || (enterSubmits && e.key === 'Enter' && !e.shiftKey)) {
       e.preventDefault()
       onSubmit?.()
     }
   })
-  // No wheel/touch scrolling inside the textarea: it is sized to its content cap.
+  // No wheel/touch scrolling inside the textarea: it is paged, not scrolled.
   ta.addEventListener('wheel', e => e.preventDefault(), { passive: false })
   ta.addEventListener('touchmove', e => e.preventDefault(), { passive: false })
-  const wrap = h('div', { class: 'composer' }, ta, h('div', { class: 'composer-meta' }, note, h('span', { class: 'meta-end' }, folio, count)))
+
+  const wrap = h('div', { class: 'composer' }, frame, h('div', { class: 'composer-meta' }, note, h('span', { class: 'meta-end' }, folio, count)))
   const baseSize = () => parseFloat(ta.dataset.baseSize || (ta.dataset.baseSize = getComputedStyle(ta).fontSize))
   wrap.measure = () => {
-    if (!ta.isConnected || ta.clientHeight < 20) return
-    // Shrink the type (down to 13px) until the current text fits the box, so a
-    // prefilled or resized composer never needs to scroll.
-    const base = baseSize()
-    let size = base
+    if (!frame.isConnected || frame.clientHeight < 20) return
+    // Shrink the type (down to 13px) until the current text fits the frame,
+    // then size the textarea to a whole number of lines.
+    const fcs = getComputedStyle(frame)
+    const inner = frame.clientHeight - parseFloat(fcs.paddingTop || '0') - parseFloat(fcs.paddingBottom || '0')
+    let size = baseSize()
     const apply = (f) => {
+      lineH = Math.round(f * 1.42)
+      lines = Math.max(1, Math.floor(inner / lineH))
       ta.style.fontSize = `${f}px`
-      ta.style.lineHeight = `${Math.round(f * 1.42)}px`
+      ta.style.lineHeight = `${lineH}px`
+      ta.style.height = `${lines * lineH}px`
     }
     apply(size)
     while (ta.scrollHeight > ta.clientHeight + 1 && size > 13) {
@@ -342,24 +364,10 @@ export function composer({ id, value, limit, placeholder, onInput, onSubmit, lab
   return wrap
 }
 
-export function lineInput({ id, value, limit, placeholder, onInput, onSubmit, label, autofocus }) {
-  const count = h('span', { class: 'count' })
-  const input = h('input', { id, type: 'text', 'aria-label': label, placeholder, maxLength: limit, autocomplete: 'off', enterkeyhint: 'done', 'data-autofocus': autofocus ? 'true' : null })
-  input.value = value || ''
-  const refresh = () => {
-    count.textContent = `${input.value.length} / ${limit}`
-    count.classList.toggle('is-hot', input.value.length >= limit * 0.9)
-  }
-  input.addEventListener('input', () => { onInput(input.value); refresh() })
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); onSubmit?.() } })
-  refresh()
-  return h('div', { class: 'composer', style: { gridTemplateRows: 'auto auto' } }, input, h('div', { class: 'composer-meta' }, h('span', null, 'Enter to continue'), count))
-}
-
 /** Radio-group of option bars with roving focus. */
-export function optionList({ options, selected, onSelect, ownWordsLabel, onOwnWords, labelledBy, max }) {
+export function optionList({ options, selected, onSelect, ownWordsLabel, onOwnWords, labelledBy, max, disabled = false }) {
   const shown = max ? options.slice(0, max) : options
-  const group = h('div', { class: 'options', role: 'radiogroup', 'aria-labelledby': labelledBy })
+  const group = h('div', { class: 'options', role: 'radiogroup', 'aria-labelledby': labelledBy, 'aria-disabled': disabled ? 'true' : null })
   const buttons = shown.map((o, i) => h('button', {
     type: 'button',
     role: 'radio',
@@ -367,11 +375,13 @@ export function optionList({ options, selected, onSelect, ownWordsLabel, onOwnWo
     'aria-checked': selected === o.id ? 'true' : 'false',
     tabIndex: selected === o.id || (!selected && i === 0) ? 0 : -1,
     'data-autofocus': i === 0 && !selected ? 'true' : selected === o.id ? 'true' : null,
+    'data-focus-key': `option:${o.id}`,
+    disabled,
     onClick: () => onSelect(o.id),
   }, h('span', { class: 'dot', 'aria-hidden': 'true' }), h('span', { class: 'opt-text' }, o.label)))
   group.append(...buttons)
   if (ownWordsLabel) {
-    group.append(h('button', { type: 'button', class: 'option is-own', onClick: onOwnWords }, h('span', { class: 'dot', 'aria-hidden': 'true', style: { borderStyle: 'dashed' } }), h('span', { class: 'opt-text' }, ownWordsLabel)))
+    group.append(h('button', { type: 'button', class: 'option is-own', 'data-focus-key': 'option:own', disabled, onClick: onOwnWords }, h('span', { class: 'dot', 'aria-hidden': 'true', style: { borderStyle: 'dashed' } }), h('span', { class: 'opt-text' }, ownWordsLabel)))
   }
   group.addEventListener('keydown', (e) => {
     const items = [...group.querySelectorAll('[role="radio"]')]
@@ -394,16 +404,16 @@ export function optionList({ options, selected, onSelect, ownWordsLabel, onOwnWo
 /**
  * A list that pages itself by measured height instead of scrolling. Call
  * `el.paginate()` after mount (and after resizes). Items taller than a page
- * get their own page and are type-fitted to it.
+ * get their own page and are type-fitted to it; a value that still does not
+ * fit at the floor size is split across pages.
  */
-export function pagedList({ items, page, onPage, renderItem, label = 'Page' }) {
+export function pagedList({ items, page, onPage, renderItem, label = 'Page', focusKey = 'pager' }) {
   const list = h('div', { class: 'ledger' })
   const slot = h('div', { class: 'paged-pager', style: { display: 'flex', justifyContent: 'flex-start', minHeight: '0' } })
   const wrap = h('div', { class: 'paged' }, list, slot)
   wrap.paginate = () => {
     if (!wrap.isConnected) return
-    const els = items.map((it, i) => renderItem(it, i))
-    // Items fit by this list carry data-fit-page so the global fitter leaves them alone.
+    let els = items.map((it, i) => renderItem(it, i))
     for (const el of els) {
       if (el.dataset.fit) {
         el.dataset.fitPage = el.dataset.fit
@@ -416,12 +426,51 @@ export function pagedList({ items, page, onPage, renderItem, label = 'Page' }) {
     clear(list)
     const limit = list.clientHeight
     if (!limit) return
-    // Measure natural heights with the list unconstrained.
-    list.style.cssText = 'display:block;height:auto;max-height:none;overflow:visible'
-    list.append(...els)
-    const heights = els.map(el => el.offsetHeight + 1)
-    list.style.cssText = ''
-    clear(list)
+    const measure = (arr) => {
+      list.style.cssText = 'display:block;height:auto;max-height:none;overflow:visible'
+      list.append(...arr)
+      const hs = arr.map(el => el.offsetHeight + 1)
+      list.style.cssText = ''
+      clear(list)
+      return hs
+    }
+    let heights = measure(els)
+    // Split values that cannot fit a page even at the floor size.
+    const expanded = []
+    els.forEach((el, i) => {
+      const v = el.querySelector('.v')
+      if (heights[i] > limit && v && !el.dataset.fitPage) {
+        const text = v.textContent
+        const probe = el.cloneNode(true)
+        probe.style.cssText = 'position:absolute;left:-99999px;width:' + list.clientWidth + 'px'
+        list.parentElement.appendChild(probe)
+        const pv = probe.querySelector('.v')
+        pv.style.fontSize = '13px'
+        pv.style.lineHeight = '1.3'
+        pv.style.maxHeight = `${Math.max(40, limit - 40)}px`
+        pv.style.height = `${Math.max(40, limit - 40)}px`
+        const slices = paginateToFit(pv, text)
+        probe.remove()
+        if (slices.length > 1) {
+          slices.forEach((s, k) => {
+            const part = el.cloneNode(true)
+            const pvv = part.querySelector('.v')
+            pvv.textContent = s
+            pvv.style.fontSize = '13px'
+            pvv.style.lineHeight = '1.3'
+            const kEl = part.querySelector('.k')
+            if (kEl && k > 0) kEl.textContent = `${kEl.textContent} (cont.)`
+            expanded.push(part)
+          })
+          return
+        }
+      }
+      expanded.push(el)
+    })
+    if (expanded.length !== els.length) {
+      els = expanded
+      heights = measure(els)
+    }
     const pages = []
     let cur = []
     let acc = 0
@@ -438,7 +487,6 @@ export function pagedList({ items, page, onPage, renderItem, label = 'Page' }) {
     if (cur.length) pages.push(cur)
     const p = Math.max(0, Math.min(page, pages.length - 1))
     list.append(...pages[p])
-    // A single item taller than the page: bound it and shrink its type.
     for (const el of pages[p]) {
       if (el.offsetHeight > limit || heights[els.indexOf(el)] > limit) {
         el.style.maxHeight = `${limit}px`
@@ -450,13 +498,12 @@ export function pagedList({ items, page, onPage, renderItem, label = 'Page' }) {
           const v = el.querySelector('.v')
           if (v) {
             v.style.maxHeight = `${Math.max(40, limit - 36)}px`
-            v.dataset.fit = v.dataset.fit || '12,16'
             fitText(v, { min: 12, max: 16 })
           }
         }
       }
     }
-    slot.replaceChildren(pages.length > 1 ? pager({ page: p, total: pages.length, onPage, label }) : h('span', { class: 'label' }, `${items.length} ${items.length === 1 ? 'entry' : 'entries'}`))
+    slot.replaceChildren(pages.length > 1 ? pager({ page: p, total: pages.length, onPage, label, focusKey }) : h('span', { class: 'label' }, `${items.length} ${items.length === 1 ? 'entry' : 'entries'}`))
   }
   return wrap
 }
@@ -465,9 +512,8 @@ export function pagedList({ items, page, onPage, renderItem, label = 'Page' }) {
  * Prose that fits its box or pages itself, never scrolls. Tries the fit range
  * first; if the text does not fit at the floor size, it is split into pages at
  * the floor size with a local pager. `el.paginate()` runs after mount/resizes.
- * @param {{paragraphs: string[], fit?: string, className?: string, maxHeight?: string}} opts
  */
-export function pagedText({ paragraphs, fit = '13,20', className = 'prose', maxHeight }) {
+export function pagedText({ paragraphs, fit = '13,20', className = 'prose', maxHeight, focusKey = 'text-pager' }) {
   const [min, max] = fit.split(',').map(Number)
   const box = h('div', { class: className, style: { whiteSpace: 'pre-wrap', margin: 0, minHeight: 0, maxHeight: maxHeight || null } })
   const slot = h('div', { class: 'paged-pager', style: { minHeight: 0 } })
@@ -477,7 +523,7 @@ export function pagedText({ paragraphs, fit = '13,20', className = 'prose', maxH
   let pages = [full]
   const show = () => {
     box.textContent = pages[page]
-    slot.replaceChildren(pages.length > 1 ? pager({ page, total: pages.length, onPage: p => { page = p; show() } }) : h('span'))
+    slot.replaceChildren(pages.length > 1 ? pager({ page, total: pages.length, onPage: p => { page = p; show() }, label: 'Page', focusKey }) : h('span'))
   }
   wrap.paginate = () => {
     if (!wrap.isConnected) return
@@ -500,11 +546,22 @@ export function pagedText({ paragraphs, fit = '13,20', className = 'prose', maxH
   return wrap
 }
 
-export function pager({ page, total, onPage, label = 'Page' }) {
+export function pager({ page, total, onPage, label = 'Page', focusKey = 'pager' }) {
+  const go = (dir, p) => {
+    onPage(p)
+    // Keep keyboard focus on the pager after the page changes (the pager may
+    // have been re-rendered). Falls back to the other arrow at either end.
+    queueMicrotask(() => {
+      const same = document.querySelector(`[data-focus-key="${focusKey}:${dir}"]`)
+      const target = same && !same.disabled ? same : document.querySelector(`[data-focus-key^="${focusKey}:"]:not(:disabled)`)
+      const active = document.activeElement
+      if (target && active !== target && (active === document.body || active?.dataset?.focusKey?.startsWith(focusKey) || active?.dataset?.autofocus)) target.focus({ preventScroll: true })
+    })
+  }
   return h('div', { class: 'pager', role: 'group', 'aria-label': `${label} ${page + 1} of ${total}` },
-    h('button', { type: 'button', disabled: page <= 0, onClick: () => onPage(page - 1), 'aria-label': 'Previous page' }, '‹'),
-    h('span', null, `${page + 1} / ${total}`),
-    h('button', { type: 'button', disabled: page >= total - 1, onClick: () => onPage(page + 1), 'aria-label': 'Next page' }, '›'))
+    h('button', { type: 'button', disabled: page <= 0, 'data-focus-key': `${focusKey}:prev`, onClick: () => go('prev', page - 1), 'aria-label': 'Previous page' }, '‹'),
+    h('span', { 'aria-hidden': 'true' }, `${page + 1} / ${total}`),
+    h('button', { type: 'button', disabled: page >= total - 1, 'data-focus-key': `${focusKey}:next`, onClick: () => go('next', page + 1), 'aria-label': 'Next page' }, '›'))
 }
 
 /** Always returns an element so grid rows stay stable; empty when no error. */

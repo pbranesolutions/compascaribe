@@ -15,7 +15,7 @@ if (params.has('fresh')) {
 }
 
 const provider = createProvider({ mode: 'simulated', latency: !fast })
-const journey = createJourney({ provider })
+const journey = createJourney({ provider, latency: !fast })
 const root = document.getElementById('app')
 const live = document.getElementById('live')
 const renderer = createRenderer({ root, live, journey, audit })

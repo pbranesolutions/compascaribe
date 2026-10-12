@@ -178,9 +178,4 @@ export function sketchParts(u, answers, f) {
   }
 }
 
-export const REFINEMENTS = [
-  { id: 'plain', label: 'Say it more plainly', variant: 'plain' },
-  { id: 'narrow', label: 'Narrow it to the first step', variant: 'narrow' },
-  { id: 'broad', label: 'Make it about the whole operation', variant: 'broad' },
-  { id: 'charter', label: 'Back to the charter form', variant: 'charter' },
-]
+export { REFINEMENTS } from './vocabulary.js'

@@ -4,7 +4,7 @@ Working notes for agents and people editing this repository.
 
 ## Shape
 
-- Vanilla JS modules + plain CSS, built with Vite 8, deployed as Cloudflare Workers static assets (`wrangler.jsonc`). No framework, no backend, no runtime dependencies.
+- Vanilla JS modules + plain CSS, built with Vite 8 (a dev dependency), deployed as Cloudflare Workers static assets (`wrangler.jsonc`). No framework, no backend, no runtime dependencies.
 - `src/domain/*` is pure logic with node tests; `src/ui/*` renders journey state; `src/app/journey.js` owns transitions. Keep that separation: the UI never imports `discovery/simulated.js` directly, only `provider.js`.
 - All AI behaviour is simulated and labelled as such in the UI. Do not add code that pretends a network call, account or Decision Channel project exists.
 

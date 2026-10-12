@@ -3,13 +3,12 @@
 // through `actions`.
 
 import { LIMITS } from '../domain/context.js'
-import { FOCUS_TITLES } from '../domain/discovery/questions.js'
-import { REFINEMENTS } from '../domain/discovery/statement.js'
+import { FOCUS_TITLES, OVERLAY_TITLES, REFINEMENTS } from '../domain/discovery/vocabulary.js'
 import { summarizePayload } from '../domain/handoff/payload.js'
 import { h } from './dom.js'
 import { paginateToFit } from './fit.js'
 import {
-  composer, errorLine, isNarrow, isTouch, lineInput, optionCapacity, optionList, pagedList, pagedText, pager,
+  composer, errorLine, isNarrow, isTouch, optionCapacity, optionList, pagedList, pagedText, pager,
   processing, skeleton, yourWords,
 } from './components.js'
 
@@ -31,17 +30,23 @@ function foot(left, right) {
   return h('div', { class: 'ply-foot' }, left || h('span'), right || null)
 }
 
-function primary(label, onClick, { disabled = false, autofocus = false, wide = false } = {}) {
-  return h('button', { type: 'button', class: `btn btn-primary${wide ? ' btn-wide' : ''}`, disabled, onClick, 'data-autofocus': autofocus ? 'true' : null }, label)
+function primary(label, onClick, { disabled = false, autofocus = false, wide = false, key = 'primary' } = {}) {
+  return h('button', { type: 'button', class: `btn btn-primary${wide ? ' btn-wide' : ''}`, disabled, onClick, 'data-autofocus': autofocus ? 'true' : null, 'data-focus-key': key }, label)
 }
 
-function ghost(label, onClick) {
-  return h('button', { type: 'button', class: 'btn btn-ghost', onClick }, label)
+function ghost(label, onClick, key = 'secondary') {
+  return h('button', { type: 'button', class: 'btn btn-ghost', onClick, 'data-focus-key': key }, label)
+}
+
+function link(label, onClick, key) {
+  return h('button', { type: 'button', class: 'link', onClick, 'data-focus-key': key }, label)
 }
 
 function ply(children, extraClass = '') {
   return h('section', { class: `ply ply-work ${extraClass}`.trim(), 'aria-live': 'off' }, children)
 }
+
+const keyHint = (text) => (isTouch() ? null : text)
 
 // ---------------------------------------------------------------------------
 
@@ -52,32 +57,39 @@ export function welcome(state, actions) {
     limit: LIMITS.submission,
     placeholder: 'A sentence or a paragraph, in your own words. What it is, who it is for, what should change.',
     label: 'Describe what you would like to build',
-    hint: 'Ctrl + Enter to begin',
+    hint: keyHint('Ctrl + Enter to begin'),
     onInput: v => actions.setDraft('welcome', v),
     onSubmit: () => actions.submit(),
     autofocus: true,
   })
   const body = h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto minmax(0, 1fr)' } },
     h('h1', { class: 'question is-hero', id: 'q', 'data-fit': '26,76', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'What would you like to build?'),
-    errorLine(state, actions),
+    errorLine(state),
     comp)
   return ply([
     head(h('span', { class: 'label' }, state.resumed ? 'Welcome back · your words are kept' : 'No sign-up · start with the idea'),
       h('span', { class: 'label', style: { textAlign: 'right' } }, 'Idea → objective → statement → Decision Channel')),
     body,
-    foot(ghost('What Compás Caribe does', () => actions.openOverlay('about')), primary('Begin', () => actions.submit(), { disabled: state.busy })),
+    foot(ghost('What Compás Caribe does', () => actions.openOverlay('about', 0, 'secondary')), primary('Begin', () => actions.submit(), { disabled: state.busy })),
   ], 'is-welcome')
 }
 
-export function qualifying(state, actions) {
-  const steps = processing(['Reading your words', 'Deciding whether this is a project we build', 'Planning the questions'], 0)
-  // Advance the pips on a simulated clock; the stage changes when the provider resolves.
+function steppedProcessing(labels, interval) {
+  const steps = processing(labels, 0)
   let i = 0
   const timer = setInterval(() => {
-    i = Math.min(2, i + 1)
-    steps.replaceWith(processing(['Reading your words', 'Deciding whether this is a project we build', 'Planning the questions'], i))
-    if (i >= 2) clearInterval(timer)
-  }, 380)
+    if (!steps.isConnected && i > 0) return clearInterval(timer)
+    i = Math.min(labels.length - 1, i + 1)
+    const next = processing(labels, i)
+    steps.replaceWith(next)
+    Object.assign(steps, { isConnected: next.isConnected })
+    if (i >= labels.length - 1) clearInterval(timer)
+  }, interval)
+  return steps
+}
+
+export function qualifying(state, actions) {
+  const steps = steppedProcessing(['Reading your words', 'Deciding whether this is a project we build', 'Planning the questions'], 380)
   const words = h('p', { class: 'prose', 'data-fit': '15,24', style: { margin: 0, maxHeight: 'var(--w-max)' } }, state.ctx.submission?.text || '')
   return ply([
     head(h('span', { class: 'label' }, h('b', null, 'Reading'), ' · simulated classification')),
@@ -102,11 +114,11 @@ export function declined(state, actions) {
   const [headline, body] = DECLINE_COPY[reason] || DECLINE_COPY['off-topic']
   return ply([
     head(h('span', { class: 'label' }, h('b', null, 'Not a project'), ' · as read by the prototype')),
-    h('div', { class: 'ply-body is-centered', style: { gridTemplateRows: 'auto auto minmax(0, 1fr)' } },
+    h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto minmax(0, 1fr)' } },
       h('h1', { class: 'question', 'data-fit': '24,56', style: { margin: 0, maxHeight: 'var(--q-max)' } }, headline),
       pagedText({ paragraphs: [body], fit: '13,21', maxHeight: 'var(--w-max)' }),
       tiny() ? h('span') : yourWords(state, actions, { lines: 3 })),
-    foot(ghost('What Compás Caribe builds', () => actions.openOverlay('about')), primary('Describe it differently', () => actions.back(), { autofocus: true })),
+    foot(ghost('What Compás Caribe builds', () => actions.openOverlay('about', 0, 'secondary')), primary('Describe it differently', () => actions.back(), { autofocus: true })),
   ], 'is-single')
 }
 
@@ -120,10 +132,10 @@ export function uncertain(state, actions) {
   const comp = composer({
     id: 'clarify',
     value: state.drafts.clarify,
-    limit: 240,
+    limit: LIMITS.clarification,
     placeholder: 'For example: so the front desk stops double-booking, for our two receptionists.',
     label: 'Tell us a little more',
-    hint: 'Ctrl + Enter to continue',
+    hint: keyHint('Ctrl + Enter to continue'),
     onInput: v => actions.setDraft('clarify', v),
     onSubmit: () => actions.clarify(),
     autofocus: true,
@@ -133,7 +145,7 @@ export function uncertain(state, actions) {
     h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto auto minmax(0, 1fr)' } },
       pagedText({ paragraphs: [reflection], fit: '12,20', className: 'reflection', maxHeight: 'var(--r-max)' }),
       h('h1', { class: 'question', id: 'q', 'data-fit': '22,44', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'What would it help you do, and for whom?'),
-      errorLine(state, actions),
+      errorLine(state),
       comp),
     foot(ghost('Say it differently', () => actions.back()), primary('Read it again', () => actions.clarify(), { disabled: state.busy })),
   ])
@@ -145,28 +157,35 @@ export function discovery(state, actions) {
   const total = state.ctx.exchanges.length
   const revisiting = Boolean(ex.answer)
   const qid = 'q'
-
+  const unchanged = revisiting && !state.ownWordsOpen && state.selection === ex.answer.optionId
+  const primaryLabel = revisiting ? (unchanged ? 'Keep this answer' : 'Update') : state.stepIndex === total - 1 ? 'Write the statement' : 'Next'
   const canCommitNow = () => (state.ownWordsOpen ? state.drafts.ownWords.trim().length > 0 : Boolean(state.selection))
-  const nextBtn = primary(revisiting ? 'Update' : state.stepIndex === total - 1 ? 'Write the statement' : 'Next', () => actions.commitAnswer(), { disabled: !canCommitNow() || state.busy || state.asideOpen })
+  const nextBtn = primary(primaryLabel, () => { if (unchanged) actions.back(); else actions.commitAnswer() }, { disabled: !canCommitNow() || state.busy || state.asideOpen })
+
   let region
   let footLeft
   if (state.asideOpen) {
-    region = h('div', { class: 'prose', 'data-fit': '15,22', style: { margin: 0 } }, ASIDES[ex.focus])
+    region = h('div', { class: 'prose', 'data-fit': '15,22', tabIndex: -1, 'data-autofocus': 'true', style: { margin: 0 } }, ASIDES[ex.focus])
     footLeft = ghost('Back to the options', () => actions.toggleAside())
   } else if (state.ownWordsOpen) {
-    region = h('div', { style: { display: 'grid', gap: '8px', alignContent: 'start' } },
-      lineInput({
+    const own = composer({
         id: 'own',
         value: state.drafts.ownWords,
         limit: LIMITS.ownWords,
         placeholder: ex.focus === 'success' ? 'What you would look at to know it worked' : 'Say it in a few words',
         label: ex.ownWordsHint || 'In your own words',
+        hint: keyHint('Enter to continue'),
+        rows: 2,
+        enterSubmits: true,
         onInput: v => { actions.setDraft('ownWords', v); nextBtn.disabled = !v.trim() || state.busy },
         onSubmit: () => { if (state.drafts.ownWords.trim()) actions.commitAnswer() },
         autofocus: true,
-      }),
-      h('button', { type: 'button', class: 'link', style: { justifySelf: 'start' }, onClick: () => actions.closeOwnWords() }, 'Back to the options'))
-    footLeft = state.stepIndex > 0 || true ? ghost('Back', () => actions.back()) : null
+      })
+    own.classList.add('is-short')
+    region = h('div', { style: { display: 'grid', gridTemplateRows: 'auto auto', gap: '8px', minHeight: 0, alignContent: 'start' } },
+      own,
+      link('Back to the options', () => actions.closeOwnWords(), 'own:back'))
+    footLeft = ghost('Back', () => actions.back())
   } else {
     region = optionList({
       options: ex.options,
@@ -176,50 +195,46 @@ export function discovery(state, actions) {
       onOwnWords: () => actions.openOwnWords(),
       labelledBy: qid,
       max: optionCapacity(),
+      disabled: state.busy,
     })
-    footLeft = ghost('Back', () => actions.back())
+    footLeft = ghost(state.returnTo === 'statement' ? 'Back to the statement' : 'Back', () => actions.back())
   }
 
-  const body = h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto auto minmax(0, 1fr)' } },
+  const body = h('div', { class: 'ply-body', 'data-budget': 'discovery', style: { gridTemplateRows: 'auto auto auto minmax(0, 1fr)' } },
     pagedText({ paragraphs: [ex.reflection], fit: '12,20', className: 'reflection', maxHeight: 'var(--r-max)' }),
     h('h1', { class: 'question', id: qid, tabIndex: -1, 'data-fit': tiny() ? '15,26' : '22,52', style: { margin: 0, maxHeight: 'var(--q-max)' } }, ex.question),
-    errorLine(state, actions),
+    errorLine(state),
     region)
 
   return ply([
     head(h('span', { class: 'label' }, h('b', null, FOCUS_TITLES[ex.focus]), ` · ${state.stepIndex + 1} of ${total}${revisiting ? ' · revisiting' : ''}`),
-      state.asideOpen ? null : h('button', { type: 'button', class: 'link', onClick: () => actions.toggleAside() }, 'Why this question')),
+      state.asideOpen ? null : link('Why this question', () => actions.toggleAside(), 'why')),
     body,
     foot(footLeft, nextBtn),
   ])
 }
 
 export function composing(state, actions) {
-  const steps = processing(['Reading your answers', 'Separating the objective from the tool', 'Writing the statement'], 0)
-  let i = 0
-  const timer = setInterval(() => {
-    i = Math.min(2, i + 1)
-    steps.replaceWith(processing(['Reading your answers', 'Separating the objective from the tool', 'Writing the statement'], i))
-    if (i >= 2) clearInterval(timer)
-  }, 320)
+  const steps = steppedProcessing(['Reading your answers', 'Separating the objective from the tool', 'Writing the statement'], 320)
   return ply([
     head(h('span', { class: 'label' }, h('b', null, 'Writing'), ' · simulated')),
     h('div', { class: 'ply-body', style: { gridTemplateRows: 'minmax(0, 1fr) auto' } },
       isNarrow() ? skeleton(state, actions, { fit: '14,22', interactive: false }) : h('div'),
       steps),
-    foot(h('span'), h('span', { class: 'label' }, 'One to three sentences')),
+    foot(ghost('Back to the answers', () => actions.back()), h('span', { class: 'label' }, 'One to three sentences')),
   ])
 }
 
 export function statement(state, actions) {
   const st = state.ctx.statement
   const drafts = state.ctx.statementHistory.length
+  const wide = !isNarrow()
   return ply([
     head(h('span', { class: 'label' }, h('b', null, 'Project statement'), ` · draft ${st?.version || 1}${st?.source === 'edited' ? ' · your words' : ' · simulated'}`),
-      drafts > 1 ? h('button', { type: 'button', class: 'link', onClick: () => actions.openOverlay('drafts', drafts - 1) }, `${drafts} drafts`) : null),
-    h('div', { class: `ply-body${isNarrow() ? '' : ' is-centered'}`, style: { gridTemplateRows: 'auto minmax(0, 1fr)' } },
+      drafts > 1 ? link(`${drafts} drafts`, () => actions.openOverlay('drafts', drafts - 1, 'drafts'), 'drafts') : null),
+    h('div', { class: `ply-body${wide ? ' is-centered' : ''}`, style: { gridTemplateRows: 'auto minmax(0, 1fr)' } },
       h('h1', { class: 'title', 'data-fit': '18,30', style: { margin: 0, maxHeight: '2.4em' } }, st?.title || 'Your project'),
-      h('p', { class: 'statement', 'data-fit': '13,34', style: { margin: 0, maxHeight: isNarrow() ? null : 'min(62vh, 600px)' }, tabIndex: -1, 'data-autofocus': 'true' }, st?.text || '')),
+      h('p', { class: 'statement', 'data-fit': '13,34', style: { margin: 0, maxHeight: wide ? 'min(62vh, 600px)' : null }, tabIndex: -1, 'data-autofocus': 'true' }, st?.text || '')),
     foot(ghost('Refine the wording', () => actions.openRefine()), primary('This is right', () => actions.accept())),
   ])
 }
@@ -233,24 +248,25 @@ export function refine(state, actions) {
       limit: LIMITS.statement,
       placeholder: 'One to three sentences.',
       label: 'Edit the project statement',
-      hint: 'Ctrl + Enter to use it',
+      hint: keyHint('Ctrl + Enter to use it'),
       onInput: v => actions.setDraft('edit', v),
       onSubmit: () => actions.editStatement(),
       autofocus: true,
     })
     return ply([
       head(h('span', { class: 'label' }, h('b', null, 'Edit the statement'), ` · from draft ${st?.version || 1}`)),
-      h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto minmax(0, 1fr)' } }, errorLine(state, actions), comp),
+      h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto minmax(0, 1fr)' } }, errorLine(state), comp),
       foot(ghost('Cancel', () => actions.toggleEditor()), primary('Use this version', () => actions.editStatement(), { disabled: state.busy })),
     ])
   }
+  const currentVariant = st?.source === 'generated' ? st?.variant : null
   const bars = REFINEMENTS
-    .filter(r => r.variant !== (st?.source === 'generated' ? st?.variant : null))
-    .map(r => h('button', { type: 'button', class: 'option', onClick: () => actions.refine(r.variant), disabled: state.busy },
+    .filter(r => r.variant !== currentVariant)
+    .map(r => h('button', { type: 'button', class: 'option', 'data-focus-key': `refine:${r.id}`, onClick: () => actions.refine(r.variant), disabled: state.busy },
       h('span', { class: 'dot', 'aria-hidden': 'true' }), h('span', { class: 'opt-text' }, r.label)))
-  bars.push(h('button', { type: 'button', class: 'option is-own', onClick: () => actions.toggleEditor() }, h('span', { class: 'dot', 'aria-hidden': 'true', style: { borderStyle: 'dashed' } }), h('span', { class: 'opt-text' }, 'Edit the words myself…')))
+  bars.push(h('button', { type: 'button', class: 'option is-own', 'data-focus-key': 'refine:edit', disabled: state.busy, onClick: () => actions.toggleEditor() }, h('span', { class: 'dot', 'aria-hidden': 'true', style: { borderStyle: 'dashed' } }), h('span', { class: 'opt-text' }, 'Edit the words myself…')))
   return ply([
-    head(h('span', { class: 'label' }, h('b', null, 'Refine'), ` · draft ${st?.version || 1}`), h('button', { type: 'button', class: 'link', onClick: () => actions.openOverlay('review') }, 'Change an answer')),
+    head(h('span', { class: 'label' }, h('b', null, 'Refine'), ` · draft ${st?.version || 1}`), link('Change an answer', () => actions.openOverlay('review', 0, 'change-answer'), 'change-answer')),
     h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto minmax(0, 1fr)' } },
       h('p', { class: 'statement refine-preview', 'data-fit': '12,19', style: { margin: 0, maxHeight: 'var(--w-max)', color: 'var(--muted)' } }, st?.text || ''),
       h('div', { class: 'options' }, bars)),
@@ -259,41 +275,37 @@ export function refine(state, actions) {
 }
 
 export function continueView(state, actions) {
+  const wide = !isNarrow()
   return ply([
     head(h('span', { class: 'label' }, h('b', null, 'Continue'), ' · what you have now')),
-    h('div', { class: `ply-body${isNarrow() ? '' : ' is-centered'}`, style: { gridTemplateRows: 'auto minmax(0, 1fr) auto' } },
+    h('div', { class: `ply-body${wide ? ' is-centered' : ''}`, style: { gridTemplateRows: 'auto minmax(0, 1fr) auto' } },
       h('h1', { class: 'question', 'data-fit': '24,56', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'This is already the start of your project.'),
-      pagedText({ maxHeight: isNarrow() ? null : 'min(44vh, 420px)', paragraphs: [
+      pagedText({ maxHeight: wide ? 'min(44vh, 420px)' : null, paragraphs: [
         'You have a project statement in your own terms: the objective, who it serves, today’s baseline and a test of success.',
         'Decision Channel is where Compás Caribe turns that into structured functional requirements: what the solution must do, decided one question at a time, with you.',
-        'Everything here travels with you. Nothing is asked twice.',
+        'When you continue, everything here goes with you into Decision Channel, so nothing is asked twice.',
       ], fit: '13,23' }),
-      h('p', { class: 'label', style: { margin: 0 } }, 'Prototype · no account is created and nothing is sent')),
+      h('p', { class: 'label', style: { margin: 0 } }, 'Prototype · this handoff is simulated: no account is created and nothing is sent')),
     foot(ghost('Back to the statement', () => actions.back()), primary('Continue into Decision Channel', () => actions.handoff(), { autofocus: true })),
   ])
 }
 
 export function handoff(state, actions) {
-  const labels = ['Packaging your words, answers and statement', 'Checking the record', 'Handing off · simulated']
-  const steps = processing(labels, 0)
-  let i = 0
-  const timer = setInterval(() => {
-    i = Math.min(2, i + 1)
-    steps.replaceWith(processing(labels, i))
-    if (i >= 2) clearInterval(timer)
-  }, 360)
+  const steps = steppedProcessing(['Packaging your words, answers and statement', 'Checking the record', 'Handing off · simulated'], 360)
   return ply([
     head(h('span', { class: 'label' }, h('b', null, 'Decision Channel'), ' · handoff · simulated')),
-    h('div', { class: 'ply-body is-centered', style: { gridTemplateRows: 'auto minmax(0, 1fr)' } },
+    h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto minmax(0, 1fr)' } },
       h('h1', { class: 'question dc-voice', 'data-fit': '22,48', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'Handing your project to Decision Channel'),
       steps),
-    foot(h('span'), h('span', { class: 'label' }, 'Nothing leaves this browser')),
+    foot(h('span'), h('span', { class: 'label' }, 'Your record does not leave this browser')),
   ])
 }
 
 export function done(state, actions) {
   const r = state.receipt
+  const wide = !isNarrow()
   const copyBtn = ghost('Copy the record', async () => {
+    if (!state.payload) return
     try {
       await navigator.clipboard.writeText(JSON.stringify(state.payload, null, 2))
       copyBtn.textContent = 'Copied'
@@ -301,16 +313,17 @@ export function done(state, actions) {
       copyBtn.textContent = 'Copy unavailable here'
     }
   })
+  if (!state.payload) copyBtn.disabled = true
   return ply([
-    head(h('span', { class: 'label' }, h('b', null, 'Decision Channel'), ' · simulated'), h('button', { type: 'button', class: 'link', onClick: () => actions.openOverlay('record') }, 'Read the record')),
-    h('div', { class: `ply-body${isNarrow() ? '' : ' is-centered'}`, style: { gridTemplateRows: 'auto auto minmax(0, 1fr)' } },
+    head(h('span', { class: 'label' }, h('b', null, 'Decision Channel'), ' · simulated'), link('Read the record', () => actions.openOverlay('record', 0, 'read-record'), 'read-record')),
+    h('div', { class: `ply-body${wide ? ' is-centered' : ''}`, style: { gridTemplateRows: 'auto auto minmax(0, 1fr)' } },
       h('h1', { class: 'question dc-voice', 'data-fit': '22,48', style: { margin: 0, maxHeight: 'var(--q-max)' }, tabIndex: -1, 'data-autofocus': 'true' }, 'Your project is ready for Decision Channel.'),
       h('div', { class: 'receipt' },
         h('span', { class: 'k' }, 'Handoff reference'),
         h('span', { class: 'v' }, r?.receiptId || '—'),
         h('span', { class: 'k', style: { marginTop: '6px' } }, 'Status'),
         h('span', { class: 'v', style: { fontSize: '12px' } }, 'Prepared locally · not transmitted')),
-      pagedText({ maxHeight: isNarrow() ? null : 'min(32vh, 300px)', paragraphs: [
+      pagedText({ maxHeight: wide ? 'min(32vh, 300px)' : null, paragraphs: [
         'In production this record opens as your project in Decision Channel, with the statement as its charter and functional requirements structured from it.',
         r?.note || '',
       ], fit: '13,20' })),
@@ -327,11 +340,21 @@ const ABOUT_PAGES = [
   ['What we do not do', 'We do not write essays, give advice, or answer general questions, and we do not pretend an AI has understood you when it has not. This prototype simulates the AI steps so you can see the shape of the experience without any account.'],
 ]
 
+function noteText(n) {
+  const parts = []
+  if (n.plan) parts.push(`questions planned: ${n.plan.map(f => FOCUS_TITLES[f] || f).join(' › ')}`)
+  if (n.mode) parts.push(`rewritten as: ${(REFINEMENTS.find(r => r.variant === n.mode) || {}).label || n.mode}`)
+  if (n.model && n.model !== 'none') parts.push(`would route to ${String(n.model).replace('claude-', 'Claude ')} (no model is called)`)
+  if (n.model === 'none') parts.push('would not reach a generative model')
+  return parts.join(' · ') || 'simulated step'
+}
+
 export function overlay(state, actions) {
   const name = state.overlay
   if (!name) return null
   const page = state.overlayPage || 0
   const close = () => actions.closeOverlay()
+  const title0 = OVERLAY_TITLES[name] || name
   let title
   let body
   let footer
@@ -340,18 +363,19 @@ export function overlay(state, actions) {
   if (name === 'about') {
     total = ABOUT_PAGES.length
     const [t, p] = ABOUT_PAGES[Math.min(page, total - 1)]
-    title = h('span', { class: 'label' }, h('b', null, 'Compás Caribe'), ` · ${page + 1} of ${total}`)
     const wide = !isNarrow()
+    title = h('span', { class: 'label' }, h('b', null, 'Compás Caribe'), ` · ${page + 1} of ${total}`)
     body = h('div', { style: { display: 'grid', gridTemplateRows: wide ? 'auto auto' : 'auto minmax(0, 1fr)', gap: '12px', minHeight: 0, alignSelf: wide ? 'center' : null } },
       h('h2', { class: 'question', 'data-fit': '22,44', style: { margin: 0, maxHeight: 'var(--q-max)' } }, t),
       pagedText({ paragraphs: [p], fit: '14,24', maxHeight: wide ? 'min(50vh, 480px)' : null }))
-    footer = [pager({ page, total, onPage: p2 => actions.overlayPage(p2) }), primary('Back', close, { autofocus: true })]
+    footer = [pager({ page, total, onPage: p2 => actions.overlayPage(p2), focusKey: 'overlay-pager' }), primary('Back', close, { autofocus: true })]
   } else if (name === 'review') {
-    title = h('span', { class: 'label' }, h('b', null, 'Understanding so far'), ' · select a part to revisit it')
+    title = h('span', { class: 'label' }, h('b', null, 'Understanding so far'), ' · simulated · select a part to revisit it')
     const rows = pagedList({
       items: [{ skeleton: true }, ...state.ctx.exchanges.map((e, i) => ({ e, i }))],
       page,
       onPage: p2 => actions.overlayPage(p2),
+      focusKey: 'overlay-pager',
       renderItem: ({ skeleton: isSk, e, i }) => {
         if (isSk) {
           const sk = skeleton(state, actions, { fit: '12,22' })
@@ -359,7 +383,7 @@ export function overlay(state, actions) {
           return sk
         }
         const v = e.answer ? e.answer.text || e.answer.label : null
-        return h('button', { type: 'button', class: `row${v ? '' : ' is-stub'}`, onClick: () => actions.revisit(i), 'aria-label': `${FOCUS_TITLES[e.focus]}: ${v || 'not yet answered'}. Revisit.` },
+        return h('button', { type: 'button', class: `row${v ? '' : ' is-stub'}`, 'data-focus-key': `review:${e.focus}`, onClick: () => actions.revisit(i), 'aria-label': `${FOCUS_TITLES[e.focus]}: ${v || 'not yet answered'}. Revisit.` },
           h('span', { class: 'num' }, String(i + 1).padStart(2, '0')),
           h('span', null, h('span', { class: 'k' }, FOCUS_TITLES[e.focus]), h('span', { class: 'v', style: { WebkitLineClamp: '4' } }, v || 'not yet answered')))
       },
@@ -374,35 +398,40 @@ export function overlay(state, actions) {
     const text = [state.ctx.submission?.text || '', ...state.ctx.clarifications.map(c => `Addition: ${c.text}`)].filter(Boolean).join('\n\n')
     const box = h('p', { class: 'prose', style: { margin: 0, fontSize: '19px', lineHeight: '1.4', whiteSpace: 'pre-wrap' } })
     body = h('div', { style: { display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', minHeight: 0 } }, box)
-    // Pages are computed after mount, when the box has a size.
     body.paginate = () => {
       const pages = paginateToFit(box, text)
       const total2 = pages.length
       const p = Math.min(page, total2 - 1)
       box.textContent = pages[p]
-      const pg = body.parentElement?.querySelector('.pager')
-      if (pg) pg.replaceWith(total2 > 1 ? pager({ page: p, total: total2, onPage: p2 => actions.overlayPage(p2) }) : h('span', { class: 'pager' }))
+      const pg = body.parentElement?.querySelector('.pager, .pager-slot')
+      if (pg) pg.replaceWith(total2 > 1 ? pager({ page: p, total: total2, onPage: p2 => actions.overlayPage(p2), focusKey: 'overlay-pager' }) : h('span', { class: 'pager-slot' }))
     }
     title = h('span', { class: 'label' }, h('b', null, 'Your words'), ' · exactly as written')
-    footer = [h('span', { class: 'pager' }), primary('Back', close, { autofocus: true })]
+    footer = [h('span', { class: 'pager-slot' }), primary('Back', close, { autofocus: true })]
   } else if (name === 'drafts') {
     const hist = state.ctx.statementHistory
     total = hist.length
     const entry = hist[Math.min(page, total - 1)]
     const current = entry.version === state.ctx.statement?.version
-    title = h('span', { class: 'label' }, h('b', null, `Draft ${entry.version}`), ` · ${entry.source === 'edited' ? 'your words' : entry.reason.replace('refine:', 'rewritten: ').replace('restore:', 'restored from draft ')}`)
-    const wideD = !isNarrow()
-    body = h('div', { style: { display: 'grid', gridTemplateRows: wideD ? 'auto' : 'minmax(0, 1fr)', minHeight: 0, alignSelf: wideD ? 'center' : null } },
-      h('p', { class: 'statement', 'data-fit': '14,30', style: { margin: 0, maxHeight: wideD ? 'min(60vh, 560px)' : null } }, entry.text))
-    footer = [pager({ page, total, onPage: p2 => actions.overlayPage(p2), label: 'Draft' }),
+    const wide = !isNarrow()
+    const how = entry.source === 'edited' ? 'your words'
+      : entry.reason?.startsWith('refine:') ? `rewritten · ${(REFINEMENTS.find(r => r.variant === entry.variant) || {}).label?.toLowerCase() || 'another way'}`
+        : entry.reason?.startsWith('restore:') ? `restored from draft ${entry.reason.split(':')[1]}`
+          : 'written from your answers'
+    title = h('span', { class: 'label' }, h('b', null, `Draft ${entry.version}`), ` · ${how}`)
+    body = h('div', { style: { display: 'grid', gridTemplateRows: wide ? 'auto' : 'minmax(0, 1fr)', minHeight: 0, alignSelf: wide ? 'center' : null } },
+      h('p', { class: 'statement', 'data-fit': '14,30', style: { margin: 0, maxHeight: wide ? 'min(60vh, 560px)' : null } }, entry.text))
+    footer = [pager({ page, total, onPage: p2 => actions.overlayPage(p2), label: 'Draft', focusKey: 'overlay-pager' }),
       current ? primary('Back', close, { autofocus: true }) : primary('Use this draft', () => actions.useDraft(entry.version), { autofocus: true })]
   } else if (name === 'record') {
-    const lines = state.payload ? summarizePayload(state.payload) : summarizePayload({ project: { title: state.ctx.statement?.title, statement: state.ctx.statement?.text }, discovery: { originalInput: state.ctx.submission?.text, answers: state.ctx.exchanges.filter(e => e.answer).map(e => ({ focus: FOCUS_TITLES[e.focus], answer: e.answer.text || e.answer.label })), statementHistory: state.ctx.statementHistory } })
-    title = h('span', { class: 'label' }, h('b', null, 'Handoff record'), ` · ${state.payload ? state.payload.schema : 'preview'}`)
+    const raw = state.payload ? summarizePayload(state.payload) : summarizePayload({ project: { title: state.ctx.statement?.title, statement: state.ctx.statement?.text }, discovery: { originalInput: state.ctx.submission?.text, answers: state.ctx.exchanges.filter(e => e.answer).map(e => ({ focus: e.focus, answer: e.answer.text || e.answer.label })), statementHistory: state.ctx.statementHistory } })
+    const lines = raw.map(([k, v]) => [FOCUS_TITLES[k] || k, v])
+    title = h('span', { class: 'label' }, h('b', null, 'Handoff record'), ` · ${state.payload ? 'as prepared · simulated' : 'preview'}`)
     body = pagedList({
       items: lines,
       page,
       onPage: p2 => actions.overlayPage(p2),
+      focusKey: 'overlay-pager',
       renderItem: ([k, v], i) => h('div', { class: 'row' }, h('span', { class: 'num' }, String(i + 1).padStart(2, '0')), h('span', null, h('span', { class: 'k' }, k), h('span', { class: 'v', style: { WebkitLineClamp: 'unset', display: 'block' } }, v))),
       label: 'Record',
     })
@@ -419,13 +448,14 @@ export function overlay(state, actions) {
       items,
       page,
       onPage: p2 => actions.overlayPage(p2),
+      focusKey: 'overlay-pager',
       renderItem: (it, i) => h('div', { class: 'row' }, h('span', { class: 'num' }, String(i + 1).padStart(2, '0')), h('span', null, h('span', { class: 'k' }, it.k), h('span', { class: 'v', style: { WebkitLineClamp: 'unset', display: 'block', fontSize: '14px' } }, it.v))),
       label: 'Notes',
     })
     footer = [h('span'), primary('Back', close, { autofocus: true })]
   }
 
-  const el = h('div', { class: 'overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': name },
+  const el = h('div', { class: 'overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': title0 },
     h('div', { class: 'ply-head' }, title),
     body,
     h('div', { class: 'ply-foot' }, footer))
@@ -433,20 +463,7 @@ export function overlay(state, actions) {
   return el
 }
 
-function noteText(n) {
-  const parts = []
-  if (n.tier) parts.push(`tier ${n.tier}${n.qualificationReason ? ` (${n.qualificationReason})` : ''}`)
-  if (n.model) parts.push(`route → ${n.model}`)
-  if (n.modelReason) parts.push(n.modelReason)
-  if (n.plan) parts.push(`plan: ${n.plan.join(' › ')}`)
-  if (n.mode) parts.push(`mode: ${n.mode}`)
-  if (typeof n.confidence === 'number') parts.push(`confidence ${n.confidence}`)
-  return parts.join(' · ') || 'simulated'
-}
-
 export const VIEWS = {
   welcome, qualifying, declined, uncertain, discovery, composing, statement, refine,
   continue: continueView, handoff, done,
 }
-
-export { isTouch }

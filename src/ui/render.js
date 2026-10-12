@@ -2,8 +2,8 @@
 // focus and announcements, fits text to its boxes, and (in audit mode) proves
 // nothing overflows after every render.
 
-import { FOCUS_TITLES } from '../domain/discovery/questions.js'
-import { strip, topBar, understandingPly } from './components.js'
+import { FOCUS_TITLES, OVERLAY_TITLES } from '../domain/discovery/vocabulary.js'
+import { activeFocusKey, strip, topBar, understandingPly } from './components.js'
 import { clear, h } from './dom.js'
 import { auditOverflow, describe, fitAll } from './fit.js'
 import { VIEWS, overlay } from './views.js'
@@ -13,40 +13,57 @@ const TWO_PLY = new Set(['uncertain', 'discovery', 'composing', 'statement', 're
 export function createRenderer({ root, live, journey, audit = false }) {
   let lastKey = null
   let lastStage = null
+  let lastOverlay = null
+  let lastAnnounced = ''
   let composers = []
 
   function keyOf(s) {
     return JSON.stringify([
       s.stage, s.stepIndex, s.overlay, s.overlayPage, s.busy, s.error?.message || null, s.selection,
       s.ownWordsOpen, s.asideOpen, s.editorOpen, s.ctx.updatedAt, s.ctx.statement?.version || 0,
-      s.receipt?.receiptId || null, s.notes.length, s.resumed, s.ctx.id,
+      s.receipt?.receiptId || null, s.notes.length, s.resumed, s.ctx.id, s.returnTo,
     ])
   }
 
-  function announce(s) {
-    let msg = ''
+  function message(s) {
+    if (s.error) return s.error.message
+    if (s.overlay) return `${OVERLAY_TITLES[s.overlay] || s.overlay} opened.`
     if (s.stage === 'discovery') {
       const ex = s.ctx.exchanges[s.stepIndex]
-      if (ex) msg = `${FOCUS_TITLES[ex.focus]}, question ${s.stepIndex + 1} of ${s.ctx.exchanges.length}. ${ex.question}`
-    } else if (s.stage === 'statement') msg = `Project statement, draft ${s.ctx.statement?.version || 1}, ready to review.`
-    else if (s.stage === 'qualifying') msg = 'Reading your words.'
-    else if (s.stage === 'composing') msg = 'Writing your project statement.'
-    else if (s.stage === 'continue') msg = 'Your statement is ready. You can continue into Decision Channel.'
-    else if (s.stage === 'done') msg = 'Handoff prepared. Prototype: nothing was transmitted.'
-    else if (s.stage === 'declined') msg = 'This does not look like a project we build.'
-    else if (s.stage === 'uncertain') msg = 'We are not sure yet. One more sentence will help.'
-    else if (s.stage === 'welcome') msg = 'What would you like to build?'
-    if (s.overlay) msg = `${s.overlay} opened.`
-    if (s.error) msg = s.error.message
-    if (msg && live) live.textContent = msg
+      return ex ? `${FOCUS_TITLES[ex.focus]}, question ${s.stepIndex + 1} of ${s.ctx.exchanges.length}. ${ex.question}` : ''
+    }
+    if (s.stage === 'statement') return `Project statement, draft ${s.ctx.statement?.version || 1}, ready to review.`
+    if (s.stage === 'qualifying') return 'Reading your words.'
+    if (s.stage === 'composing') return 'Writing your project statement.'
+    if (s.stage === 'continue') return 'Your statement is ready. You can continue into Decision Channel.'
+    if (s.stage === 'done') return 'Handoff prepared. Prototype: nothing was transmitted.'
+    if (s.stage === 'declined') return 'This does not look like a project we build.'
+    if (s.stage === 'uncertain') return 'We are not sure yet. One more sentence will help.'
+    if (s.stage === 'welcome') return 'What would you like to build?'
+    return ''
+  }
+
+  function announce(s) {
+    // The inline alert already announces errors; the live region only speaks
+    // when the message actually changes.
+    const msg = s.error ? '' : message(s)
+    if (!live || !msg || msg === lastAnnounced) return
+    lastAnnounced = msg
+    live.textContent = msg
   }
 
   function render(s = journey.state) {
     const key = keyOf(s)
     if (key === lastKey) return
     const stageChanged = s.stage !== lastStage
+    const overlayClosed = Boolean(lastOverlay) && !s.overlay
+    const prevFocusKey = activeFocusKey()
+    const prevCaret = document.activeElement && 'selectionStart' in document.activeElement ? { id: document.activeElement.id, start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null
     lastKey = key
     lastStage = s.stage
+    const returnKey = overlayClosed ? s.overlayReturn || lastOverlayReturn : null
+    lastOverlayReturn = s.overlay ? s.overlayReturn : lastOverlayReturn
+    lastOverlay = s.overlay
 
     root.dataset.stage = s.stage
     root.dataset.step = String(Math.min(3, s.stepIndex))
@@ -63,18 +80,28 @@ export function createRenderer({ root, live, journey, audit = false }) {
     stage.append(work)
     if (twoPly) stage.append(understandingPly(s, journey.actions))
     const ov = overlay(s, journey.actions)
-    if (ov) stage.append(ov)
+    if (ov) {
+      stage.append(ov)
+      trapFocus(ov)
+    }
     stage.append(h('div', { class: 'guard', hidden: true, 'aria-hidden': 'true' }, h('p', { class: 'question' }, 'Turn your phone upright to keep writing.')))
 
+    const bar = topBar(s, journey.actions)
     clear(root)
-    root.append(topBar(s, journey.actions), stage)
+    root.append(bar, stage)
+
+    // Behind an overlay, everything else is inert for keyboard and AT users.
+    const inert = Boolean(ov)
+    bar.inert = inert
+    for (const el of stage.children) if (el !== ov) el.inert = inert
 
     composers = [...root.querySelectorAll('.composer')].filter(c => typeof c.measure === 'function')
     layout()
-    focus(s, stageChanged)
+    focus(s, { stageChanged, prevFocusKey, prevCaret, returnKey })
     announce(s)
     if (audit) requestAnimationFrame(() => runAudit('render'))
   }
+  let lastOverlayReturn = null
 
   const repaginate = () => {
     for (const el of root.querySelectorAll('.paged')) el.paginate?.()
@@ -85,24 +112,68 @@ export function createRenderer({ root, live, journey, audit = false }) {
     fitAll(root)
     for (const c of composers) c.measure()
     repaginate()
+    budget()
     // A second pass after fonts/metrics settle.
     requestAnimationFrame(() => {
       fitAll(root)
       for (const c of composers) c.measure()
       repaginate()
+      budget()
     })
   }
 
-  function focus(s, stageChanged) {
-    const target = root.querySelector('.overlay [data-autofocus]') || root.querySelector('[data-autofocus]')
+  /**
+   * Height budget for the working ply: when its body still overflows after
+   * fitting, compact the discovery composition step by step (tighter
+   * reflection, tighter question, two-column options, one fewer option) and
+   * re-fit after each step, so nothing is ever cut off.
+   */
+  function budget() {
+    const body = root.querySelector('.ply-work .ply-body[data-budget]')
+    if (!body) return
+    const over = () => body.scrollHeight > body.clientHeight + 2
+    if (!over()) return
+    const steps = [
+      () => { const r = body.querySelector('.reflection'); if (r) r.style.maxHeight = '2.7em' },
+      () => { const q = body.querySelector('.question'); if (q) q.style.maxHeight = '2.3em' },
+      () => { const o = body.querySelector('.options'); if (o && body.clientWidth >= 440) o.classList.add('is-two-col') },
+      () => { const o = body.querySelector('.options'); if (o) { const radios = o.querySelectorAll('[role="radio"]'); if (radios.length > 2) radios[radios.length - 1].hidden = true } },
+      () => { const r = body.querySelector('.reflection'); if (r) r.style.maxHeight = '1.4em' },
+    ]
+    for (const step of steps) {
+      step()
+      fitAll(body)
+      for (const el of body.querySelectorAll('.paged')) el.paginate?.()
+      if (!over()) return
+    }
+  }
+
+  function trapFocus(ov) {
+    ov.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return
+      const items = [...ov.querySelectorAll('button:not([disabled]), [href], input, textarea, [tabindex]:not([tabindex="-1"])')].filter(el => el.offsetParent !== null)
+      if (!items.length) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    })
+  }
+
+  function focus(s, { stageChanged, prevFocusKey, prevCaret, returnKey }) {
+    const byKey = (k) => (k ? root.querySelector(`[data-focus-key="${CSS.escape(k)}"]`) : null)
+    // 1. An overlay just closed: return to the control that opened it.
+    // 2. Same control as before the re-render (option, pager, link…).
+    // 3. The view's own autofocus target.
+    let target = (returnKey && byKey(returnKey)) || (!stageChanged && prevFocusKey && byKey(prevFocusKey)) || root.querySelector('.overlay [data-autofocus]') || root.querySelector('[data-autofocus]')
+    if (target && target.disabled) target = root.querySelector('.overlay [data-autofocus]') || root.querySelector('[data-autofocus]')
     if (!target) return
-    // Keep the visitor's caret if they are typing in the same field.
-    if (!stageChanged && document.activeElement && document.activeElement.tagName === 'TEXTAREA' && document.activeElement.id === target.id) return
     try {
       target.focus({ preventScroll: true })
       if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
         const n = target.value.length
-        target.setSelectionRange(n, n)
+        if (prevCaret && prevCaret.id === target.id && prevCaret.start <= n) target.setSelectionRange(prevCaret.start, prevCaret.end)
+        else target.setSelectionRange(n, n)
       }
     } catch {
       /* ignore */

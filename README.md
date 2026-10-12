@@ -33,7 +33,9 @@ The runner needs a local Chrome or Edge (set `CHROME_PATH` otherwise). It writes
 screenshots and `report.json` to `tests/browser/shots/`.
 
 Useful URL flags: `?audit` logs an overflow audit after every render,
-`?fast` removes the simulated think-time, `?fresh` clears the saved journey.
+`?fast` removes all simulated delays (classification, discovery, statement and
+handoff), `?fresh` clears the saved journey. `npm run test:browser` runs the
+harness against `http://localhost:5173`.
 
 ## Architecture
 
@@ -111,7 +113,8 @@ revisits that answer.
   pages that follow the caret — never a scrollbar.
 - Option bars shrink before they overflow; very short viewports switch to a
   two-column layout; option count adapts to the height.
-- Hard limits live in `LIMITS`: description 480, own words 140, statement 360.
+- Hard limits live in `LIMITS`: description 480, clarification 240, own words
+  140, statement 360.
 - `auditOverflow()` walks the DOM and reports anything that would need
   scrolling. It runs after every render with `?audit`, and the browser harness
   asserts it at every state on every viewport. Intentional one- and two-line
@@ -156,4 +159,7 @@ Every simulated step is labelled in the interface (*simulated*, *prototype*).
 - Statement variants are templates; a model will write better prose.
 - Folio paging in composers is state-driven, but it relies on the browser's
   internal textarea offset; it is verified in Chrome and not yet in Safari.
+- Fonts load from Google Fonts, so the page makes that one outbound request;
+  the handoff record itself never leaves the browser. Self-hosting the three
+  families is a straightforward follow-up.
 - Browser tests run only where Chrome or Edge is installed.

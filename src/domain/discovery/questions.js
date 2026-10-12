@@ -14,15 +14,10 @@ function firstFit(cap, ...variants) {
 }
 import { capSubject, subjectOrFallback } from './understanding.js'
 
-export const FOCUS_ORDER = ['objective', 'people', 'current', 'scope', 'success']
+import { FOCUS_TITLES } from './vocabulary.js'
 
-export const FOCUS_TITLES = Object.freeze({
-  objective: 'Objective',
-  people: 'People',
-  current: 'Today',
-  scope: 'Scope',
-  success: 'Success',
-})
+export const FOCUS_ORDER = ['objective', 'people', 'current', 'scope', 'success']
+export { FOCUS_TITLES }
 
 /**
  * Decide which questions to ask, in order. 2–4 questions.

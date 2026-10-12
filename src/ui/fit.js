@@ -66,8 +66,10 @@ export function fitAll(root = document) {
  * Breaks at sentence boundaries where possible, otherwise at words.
  */
 export function paginateToFit(box, text) {
-  const words = String(text || '').trim().split(/\s+/).filter(Boolean)
+  // Paragraph breaks are kept as their own tokens so pages re-join faithfully.
+  const words = String(text || '').trim().split(/\n\s*\n/).flatMap((para, i) => (i ? ['\n\n'] : []).concat(para.split(/\s+/).filter(Boolean)))
   if (!words.length) return ['']
+  const joinWords = (arr) => arr.join(' ').replace(/ ?\n\n ?/g, '\n\n')
   const mirror = document.createElement('div')
   const cs = getComputedStyle(box)
   for (const p of ['font', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing', 'wordSpacing', 'textIndent', 'padding', 'boxSizing', 'textTransform']) mirror.style[p] = cs[p]
@@ -78,7 +80,7 @@ export function paginateToFit(box, text) {
   mirror.style.top = '0'
   mirror.style.width = `${box.clientWidth}px`
   mirror.style.height = 'auto'
-  mirror.style.whiteSpace = 'normal'
+  mirror.style.whiteSpace = 'pre-wrap'
   mirror.style.overflowWrap = 'anywhere'
   document.body.appendChild(mirror)
   const limit = box.clientHeight
@@ -90,7 +92,7 @@ export function paginateToFit(box, text) {
     // Largest j such that words[i..j) fits.
     while (lo < hi) {
       const mid = Math.ceil((lo + hi) / 2)
-      mirror.textContent = words.slice(i, mid).join(' ')
+      mirror.textContent = joinWords(words.slice(i, mid))
       if (mirror.scrollHeight <= limit + 1) lo = mid
       else hi = mid - 1
     }
@@ -104,7 +106,9 @@ export function paginateToFit(box, text) {
         }
       }
     }
-    pages.push(words.slice(i, j).join(' '))
+    // Never start a page with a paragraph break.
+    while (words[j] === '\n\n' && j < words.length) j++
+    pages.push(joinWords(words.slice(i, j)).trim())
     i = j
   }
   mirror.remove()
@@ -128,10 +132,13 @@ export function capacityOf(box, sampleText) {
   mirror.style.whiteSpace = 'pre-wrap'
   mirror.style.overflowWrap = 'anywhere'
   document.body.appendChild(mirror)
-  // Measure chars per line and lines per box.
+  // Measure chars per line and lines per box. A line is measured without the
+  // box's padding, otherwise the capacity is badly underestimated.
+  const padV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+  mirror.style.padding = '0'
+  mirror.style.border = '0'
   mirror.textContent = 'x'
   const lineH = mirror.scrollHeight || parseFloat(cs.lineHeight) || 20
-  const padV = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
   const lines = Math.max(1, Math.floor((box.clientHeight - padV) / lineH))
   let filler = text
   while (mirror.scrollHeight <= lineH * 2 && filler.length < 4000) {
@@ -195,20 +202,23 @@ export function describe(el) {
  */
 export function bindViewport(onChange) {
   const root = document.documentElement
-  let last = -1
+  let lastH = -1
+  let lastW = -1
   const update = () => {
     const vv = window.visualViewport
     const h = Math.round(vv ? vv.height : window.innerHeight)
     const w = Math.round(vv ? vv.width : window.innerWidth)
     // A hidden or not-yet-laid-out tab reports 0×0; ignore it.
     if (h < 80 || w < 80) return
-    if (h !== last) {
+    if (h !== lastH || w !== lastW) {
       root.style.setProperty('--vvh', `${h}px`)
       root.style.setProperty('--vvw', `${w}px`)
-      root.dataset.short = h < 560 ? 'true' : 'false'
+      root.dataset.short = h < 600 ? 'true' : 'false'
+      root.dataset.medium = h >= 600 && h < 700 ? 'true' : 'false'
       root.dataset.tiny = h < 420 ? 'true' : 'false'
       root.dataset.unusable = h < 220 ? 'true' : 'false'
-      last = h
+      lastH = h
+      lastW = w
       onChange?.(h, w)
     }
     // Some browsers scroll the page when the keyboard opens; undo it.

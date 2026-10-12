@@ -8,6 +8,7 @@ export const CONTEXT_VERSION = 1
 /** Hard limits that keep every screen fit-to-viewport. Shared with the UI. */
 export const LIMITS = Object.freeze({
   submission: 480,
+  clarification: 240,
   ownWords: 140,
   statement: 360,
 })

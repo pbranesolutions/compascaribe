@@ -49,9 +49,16 @@
 .app {
   --ply2: color-mix(in oklab, var(--surface) 86%, black);
   --ply3: color-mix(in oklab, var(--surface) 72%, black);
-  --muted: color-mix(in oklab, var(--ink) 68%, var(--surface));
-  --faint: color-mix(in oklab, var(--ink) 42%, var(--surface));
-  --hair: color-mix(in oklab, var(--ink) 22%, var(--surface));
+  --muted: color-mix(in oklab, var(--ink) 78%, var(--surface));
+  --faint: color-mix(in oklab, var(--ink) 62%, var(--surface));
+  --hair: color-mix(in oklab, var(--ink) 24%, var(--surface));
+}
+@media (prefers-contrast: more) {
+  .app {
+    --muted: color-mix(in oklab, var(--ink) 92%, var(--surface));
+    --faint: color-mix(in oklab, var(--ink) 80%, var(--surface));
+    --hair: color-mix(in oklab, var(--ink) 50%, var(--surface));
+  }
 }
 
 /* Stage identities: a hue walk from indigo through the warm reds to umber,
@@ -73,9 +80,9 @@
   --accent: var(--ember);
   --ply2: color-mix(in oklab, var(--surface) 93%, black);
   --ply3: color-mix(in oklab, var(--surface) 86%, black);
-  --muted: color-mix(in oklab, var(--ink) 72%, var(--surface));
-  --faint: color-mix(in oklab, var(--ink) 50%, var(--surface));
-  --hair: color-mix(in oklab, var(--ink) 26%, var(--surface));
+  --muted: color-mix(in oklab, var(--ink) 80%, var(--surface));
+  --faint: color-mix(in oklab, var(--ink) 64%, var(--surface));
+  --hair: color-mix(in oklab, var(--ink) 28%, var(--surface));
   color-scheme: light;
 }
 .app[data-stage='continue'] { --surface: var(--green); }
@@ -86,5 +93,6 @@
   :root { --bar: 60px; --option: 48px; }
 }
 
+html[data-medium='true'] { --option: 44px; --gap: 8px; }
 html[data-short='true'] { --bar: 44px; --option: 40px; --option-min: 36px; --pad: 10px; --gap: 6px; }
 html[data-tiny='true'] { --bar: 40px; --option: 38px; }
