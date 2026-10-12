@@ -207,7 +207,10 @@ export function deriveUnderstanding(f) {
     }
   }
 
-  const { purpose, purposeKind } = normalizePurpose(f.purpose, f.organization)
+  let { purpose, purposeKind } = normalizePurpose(f.purpose, f.organization)
+  // A bridged Spanish submission keeps the purpose *kind* (it shapes the plan)
+  // but not the words: a half-translated clause must never reach the visitor.
+  if (f.spanish) purpose = null
 
   return {
     subject,

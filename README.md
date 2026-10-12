@@ -45,7 +45,7 @@ src/
   app/journey.js             journey state machine, transitions, persistence, history
   domain/
     context.js               ProjectContext: everything learned, pure updates, limits
-    qualification/           simulated Jev: lexicon, feature extraction, 4-tier classifier
+    qualification/           simulated Jev: lexicon, Spanish keyword bridge, feature extraction, 4-tier classifier
     discovery/
       provider.js            the generative-AI boundary (qualify / open / answer / compose / refine)
       simulated.js           deterministic engine behind that boundary
@@ -149,8 +149,10 @@ Every simulated step is labelled in the interface (*simulated*, *prototype*).
 
 ## Known limitations
 
-- The simulated engine is lexicon-driven and English-only; unusual phrasings
-  can land in *uncertain* and are offered a second sentence.
+- The simulated engine is lexicon-driven. Spanish and Spanglish submissions
+  are bridged to English keywords for extraction (`qualification/spanish.js`);
+  the interface itself is English. Unusual phrasings can land in *uncertain*
+  and are offered a second sentence.
 - Statement variants are templates; a model will write better prose.
 - Folio paging in composers is state-driven, but it relies on the browser's
   internal textarea offset; it is verified in Chrome and not yet in Safari.

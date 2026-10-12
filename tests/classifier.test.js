@@ -76,3 +76,17 @@ test('the UI never needs internal scores: qualification exposes tier, label, con
   assert.deepEqual(Object.keys(q).sort(), ['confidence', 'features', 'label', 'reason', 'score', 'tier'])
   assert.ok(q.confidence > 0 && q.confidence <= 1)
 })
+
+test('Spanish and Spanglish submissions are bridged to the same signals', () => {
+  expectTier('Quiero una app para mi restaurante para que los clientes pidan sin llamar', TIERS.RELEVANT)
+  expectTier('Perdemos pedidos que llegan por WhatsApp y alguien tiene que copiarlos a mano en un cuaderno', TIERS.RELEVANT)
+  expectTier('Necesitamos un sistema para las citas de la clínica, la recepción usa una agenda de papel', TIERS.RELEVANT)
+  expectTier('Una página web para mi tienda', TIERS.PROBABLY)
+  expectTier('Tengo una ferretería y no sé qué hay en inventario sin caminar los pasillos', TIERS.PROBABLY)
+  const f = analyze('Quiero una app para mi restaurante para que los clientes pidan sin llamar')
+  assert.equal(f.spanish, true)
+  assert.equal(f.domain.id, 'hospitality')
+  assert.equal(f.raw, 'Quiero una app para mi restaurante para que los clientes pidan sin llamar')
+  // English text is never rewritten.
+  assert.equal(analyze('I want an app').spanish, false)
+})

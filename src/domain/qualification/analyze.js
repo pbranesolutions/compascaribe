@@ -9,10 +9,12 @@ import {
   ORG_NOUNS, OUTCOMES, PAINS, PURPOSE_CLAUSE, SCALE, SOLUTION_LEADS, STOPWORDS,
   SUPPORT_PATTERNS, VENDOR_PITCH_PATTERNS, VENDOR_PITCH_WEAK_PATTERNS,
 } from './lexicon.js'
+import { looksSpanish, translateHints } from './spanish.js'
 
 /**
  * @typedef {Object} Features
- * @property {string} raw
+ * @property {string} raw               what the visitor wrote
+ * @property {boolean} spanish          extraction ran over a Spanish→English keyword bridge
  * @property {string} normalized
  * @property {string[]} tokens
  * @property {number} wordCount
@@ -171,7 +173,12 @@ function capturePurpose(raw) {
  * @returns {Features}
  */
 export function analyze(raw) {
-  const normalized = normalize(raw)
+  // Spanish and Spanglish submissions are bridged to English keywords for
+  // extraction only; `raw` is what the visitor wrote and what the UI shows.
+  const source = String(raw || '')
+  const spanish = looksSpanish(source)
+  const text = spanish ? translateHints(source) : source
+  const normalized = normalize(text)
   const tokens = normalized ? normalized.split(' ') : []
   const wordCount = tokens.length
   const gibberish = detectGibberish(normalized, tokens)
@@ -186,23 +193,24 @@ export function analyze(raw) {
   const actors = detectActors(normalized)
 
   const negatives = {
-    offTopic: OFF_TOPIC_PATTERNS.some(re => re.test(raw)),
-    jobSeeking: JOB_SEEKING_PATTERNS.some(re => re.test(raw)),
-    vendorPitch: VENDOR_PITCH_PATTERNS.some(re => re.test(raw)),
-    vendorPitchWeak: VENDOR_PITCH_WEAK_PATTERNS.some(re => re.test(raw)),
-    support: SUPPORT_PATTERNS.some(re => re.test(raw)),
-    injection: INJECTION_PATTERNS.some(re => re.test(raw)),
+    offTopic: OFF_TOPIC_PATTERNS.some(re => re.test(text)),
+    jobSeeking: JOB_SEEKING_PATTERNS.some(re => re.test(text)),
+    vendorPitch: VENDOR_PITCH_PATTERNS.some(re => re.test(text)),
+    vendorPitchWeak: VENDOR_PITCH_WEAK_PATTERNS.some(re => re.test(text)),
+    support: SUPPORT_PATTERNS.some(re => re.test(text)),
+    injection: INJECTION_PATTERNS.some(re => re.test(text)),
     greeting: wordCount <= 3 && tokens.every(t => GREETING_WORDS.includes(t)),
   }
 
-  const solutionFirst = artifacts.length > 0 && SOLUTION_LEADS.some(re => re.test(raw)) && pains.length === 0 && outcomes.length === 0
+  const solutionFirst = artifacts.length > 0 && SOLUTION_LEADS.some(re => re.test(text)) && pains.length === 0 && outcomes.length === 0
   const tooShort = wordCount < 3 || normalized.length < 12
-  const organization = captureOperation(String(raw || ''))
-  const purpose = capturePurpose(String(raw || ''))
+  const organization = captureOperation(text)
+  const purpose = capturePurpose(text)
   const substance = Boolean(artifacts.length || operations.length || pains.length || outcomes.length || domain || organization || purpose)
 
   return {
-    raw: String(raw || ''),
+    raw: source,
+    spanish,
     normalized,
     tokens,
     wordCount,
