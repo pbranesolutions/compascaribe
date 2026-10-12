@@ -129,13 +129,17 @@ h1[tabindex='-1']:focus-visible, h2[tabindex='-1']:focus-visible, p[tabindex='-1
   height: 24px;
   width: min(100%, 300px);
 }
+.route-item { display: block; min-width: 0; }
 .route-seg {
+  display: block;
+  width: 100%;
   height: 4px;
   border-radius: 2px;
   background: transparent;
   border: 1px solid var(--faint);
   position: relative;
 }
+button.route-seg { padding: 0; }
 .route-seg.is-past { background: var(--seg); border-color: var(--ink); }
 .route-seg.is-now { background: var(--ink); border-color: var(--ink); height: 6px; }
 .route-seg.is-cap { border-style: dashed; }
