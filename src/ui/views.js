@@ -217,9 +217,9 @@ export function statement(state, actions) {
   return ply([
     head(h('span', { class: 'label' }, h('b', null, 'Project statement'), ` · draft ${st?.version || 1}${st?.source === 'edited' ? ' · your words' : ' · simulated'}`),
       drafts > 1 ? h('button', { type: 'button', class: 'link', onClick: () => actions.openOverlay('drafts', drafts - 1) }, `${drafts} drafts`) : null),
-    h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto minmax(0, 1fr)' } },
+    h('div', { class: `ply-body${isNarrow() ? '' : ' is-centered'}`, style: { gridTemplateRows: 'auto minmax(0, 1fr)' } },
       h('h1', { class: 'title', 'data-fit': '18,30', style: { margin: 0, maxHeight: '2.4em' } }, st?.title || 'Your project'),
-      h('p', { class: 'statement', 'data-fit': '13,34', style: { margin: 0 }, tabIndex: -1, 'data-autofocus': 'true' }, st?.text || '')),
+      h('p', { class: 'statement', 'data-fit': '13,34', style: { margin: 0, maxHeight: isNarrow() ? null : 'min(62vh, 600px)' }, tabIndex: -1, 'data-autofocus': 'true' }, st?.text || '')),
     foot(ghost('Refine the wording', () => actions.openRefine()), primary('This is right', () => actions.accept())),
   ])
 }
