@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test \"tests/*.test.js\"",
+    "check": "npm test && npm run build",
     "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "test:browser": "node tests/browser/run.mjs --url http://localhost:5173"
   },
   "dependencies": {
     "vite": "^8.0.8"

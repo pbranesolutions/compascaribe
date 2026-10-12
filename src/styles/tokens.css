@@ -1,0 +1,90 @@
+/* Design tokens. One palette, walked through the journey. */
+
+:root {
+  /* Inks and surfaces */
+  --bone: #f4ecdc;
+  --indigo: #1f1b4f;
+  --wine: #4a1a3d;
+  --oxblood: #4f1c25;
+  --rust: #5a2c17;
+  --umber: #5b3e12;
+  --ochre-deep: #5e4a12;
+  --green: #12382f;
+  --slate: #1e2a3b;
+  --graphite: #2a2724;
+  --lamp: #e8b84a;
+  --ember: #b4411e;
+
+  /* Stage-dependent, redefined per data-stage on .app */
+  --surface: var(--indigo);
+  --ink: var(--bone);
+  --accent: var(--lamp);
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque', 'Archivo', system-ui, sans-serif;
+  --font-text: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Menlo, monospace;
+
+  /* Rhythm */
+  --bar: 52px;
+  --gutter: clamp(14px, 3vw, 40px);
+  --pad: clamp(12px, 2.4vw, 32px);
+  --gap: 10px;
+  --radius: 3px;
+  --control: 44px;
+  --option: 44px;
+
+  /* Viewport height, kept current by JS; falls back to dynamic viewport units */
+  --vvh: 100dvh;
+
+  /* Motion */
+  --t-surface: 520ms;
+  --t-ui: 220ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  color-scheme: dark;
+}
+
+/* Derived roles live on .app so they follow the stage surface. */
+.app {
+  --ply2: color-mix(in oklab, var(--surface) 86%, black);
+  --ply3: color-mix(in oklab, var(--surface) 72%, black);
+  --muted: color-mix(in oklab, var(--ink) 68%, var(--surface));
+  --faint: color-mix(in oklab, var(--ink) 42%, var(--surface));
+  --hair: color-mix(in oklab, var(--ink) 22%, var(--surface));
+}
+
+/* Stage identities: a hue walk from indigo through the warm reds to umber,
+   inversion to paper for the statement, deep green for commitment, cooler slate
+   once the work crosses into Decision Channel. */
+.app[data-stage='welcome'] { --surface: var(--indigo); }
+.app[data-stage='qualifying'] { --surface: var(--wine); }
+.app[data-stage='declined'],
+.app[data-stage='uncertain'] { --surface: var(--graphite); }
+.app[data-stage='discovery'][data-step='0'] { --surface: var(--oxblood); }
+.app[data-stage='discovery'][data-step='1'] { --surface: var(--rust); }
+.app[data-stage='discovery'][data-step='2'] { --surface: var(--umber); }
+.app[data-stage='discovery'][data-step='3'] { --surface: var(--ochre-deep); }
+.app[data-stage='composing'] { --surface: var(--ochre-deep); }
+.app[data-stage='statement'],
+.app[data-stage='refine'] {
+  --surface: var(--bone);
+  --ink: var(--indigo);
+  --accent: var(--ember);
+  --ply2: color-mix(in oklab, var(--surface) 93%, black);
+  --ply3: color-mix(in oklab, var(--surface) 86%, black);
+  --muted: color-mix(in oklab, var(--ink) 72%, var(--surface));
+  --faint: color-mix(in oklab, var(--ink) 50%, var(--surface));
+  --hair: color-mix(in oklab, var(--ink) 26%, var(--surface));
+  color-scheme: light;
+}
+.app[data-stage='continue'] { --surface: var(--green); }
+.app[data-stage='handoff'],
+.app[data-stage='done'] { --surface: var(--slate); --ink: #e6ecf2; --accent: #9fd0c0; }
+
+@media (min-width: 900px) {
+  :root { --bar: 60px; --option: 48px; }
+}
+
+html[data-short='true'] { --bar: 44px; --option: 40px; --option-min: 36px; --pad: 10px; --gap: 6px; }
+html[data-tiny='true'] { --bar: 40px; --option: 38px; }
