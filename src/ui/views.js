@@ -175,7 +175,7 @@ export function discovery(state, actions) {
         placeholder: ex.focus === 'success' ? 'What you would look at to know it worked' : 'Say it in a few words',
         label: ex.ownWordsHint || 'In your own words',
         hint: keyHint('Enter to continue'),
-        rows: 2,
+        rows: 3,
         enterSubmits: true,
         onInput: v => { actions.setDraft('ownWords', v); nextBtn.disabled = !v.trim() || state.busy },
         onSubmit: () => { if (state.drafts.ownWords.trim()) actions.commitAnswer() },
