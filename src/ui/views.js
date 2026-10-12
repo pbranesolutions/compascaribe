@@ -341,9 +341,10 @@ export function overlay(state, actions) {
     total = ABOUT_PAGES.length
     const [t, p] = ABOUT_PAGES[Math.min(page, total - 1)]
     title = h('span', { class: 'label' }, h('b', null, 'Compás Caribe'), ` · ${page + 1} of ${total}`)
-    body = h('div', { style: { display: 'grid', gridTemplateRows: 'auto minmax(0, 1fr)', gap: '12px', minHeight: 0 } },
+    const wide = !isNarrow()
+    body = h('div', { style: { display: 'grid', gridTemplateRows: wide ? 'auto auto' : 'auto minmax(0, 1fr)', gap: '12px', minHeight: 0, alignSelf: wide ? 'center' : null } },
       h('h2', { class: 'question', 'data-fit': '22,44', style: { margin: 0, maxHeight: 'var(--q-max)' } }, t),
-      pagedText({ paragraphs: [p], fit: '14,24' }))
+      pagedText({ paragraphs: [p], fit: '14,24', maxHeight: wide ? 'min(50vh, 480px)' : null }))
     footer = [pager({ page, total, onPage: p2 => actions.overlayPage(p2) }), primary('Back', close, { autofocus: true })]
   } else if (name === 'review') {
     title = h('span', { class: 'label' }, h('b', null, 'Understanding so far'), ' · select a part to revisit it')
@@ -390,8 +391,9 @@ export function overlay(state, actions) {
     const entry = hist[Math.min(page, total - 1)]
     const current = entry.version === state.ctx.statement?.version
     title = h('span', { class: 'label' }, h('b', null, `Draft ${entry.version}`), ` · ${entry.source === 'edited' ? 'your words' : entry.reason.replace('refine:', 'rewritten: ').replace('restore:', 'restored from draft ')}`)
-    body = h('div', { style: { display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', minHeight: 0 } },
-      h('p', { class: 'statement', 'data-fit': '16,30', style: { margin: 0 } }, entry.text))
+    const wideD = !isNarrow()
+    body = h('div', { style: { display: 'grid', gridTemplateRows: wideD ? 'auto' : 'minmax(0, 1fr)', minHeight: 0, alignSelf: wideD ? 'center' : null } },
+      h('p', { class: 'statement', 'data-fit': '14,30', style: { margin: 0, maxHeight: wideD ? 'min(60vh, 560px)' : null } }, entry.text))
     footer = [pager({ page, total, onPage: p2 => actions.overlayPage(p2), label: 'Draft' }),
       current ? primary('Back', close, { autofocus: true }) : primary('Use this draft', () => actions.useDraft(entry.version), { autofocus: true })]
   } else if (name === 'record') {
