@@ -18,7 +18,6 @@ export const REFINEMENTS = Object.freeze([
 ])
 
 export const OVERLAY_TITLES = Object.freeze({
-  about: 'About Compás Caribe',
   review: 'Understanding so far',
   words: 'Your words',
   drafts: 'Statement drafts',

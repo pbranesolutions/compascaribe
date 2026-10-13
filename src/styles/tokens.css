@@ -23,6 +23,7 @@
   /* Type */
   --font-display: 'Bricolage Grotesque', 'Archivo', system-ui, sans-serif;
   --font-text: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-headline: 'Source Sans 3', 'Source Sans Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Menlo, monospace;
 
   /* Rhythm */

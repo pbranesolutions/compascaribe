@@ -27,7 +27,7 @@ function head(left, right) {
 }
 
 function foot(left, right) {
-  return h('div', { class: 'ply-foot' }, left || h('span'), right || null)
+  return h('div', { class: 'ply-foot' }, ...[left, right].filter(Boolean))
 }
 
 function primary(label, onClick, { disabled = false, autofocus = false, wide = false, key = 'primary' } = {}) {
@@ -56,21 +56,21 @@ export function welcome(state, actions) {
     value: state.drafts.welcome,
     limit: LIMITS.submission,
     placeholder: 'A sentence or a paragraph, in your own words. What it is, who it is for, what should change.',
-    label: 'Describe what you would like to build',
+    label: 'Describe what you would like to make possible',
     hint: keyHint('Ctrl + Enter to begin'),
     onInput: v => actions.setDraft('welcome', v),
     onSubmit: () => actions.submit(),
     autofocus: true,
   })
   const body = h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto minmax(0, 1fr)' } },
-    h('h1', { class: 'question is-hero', id: 'q', 'data-fit': '26,76', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'What would you like to build?'),
+    h('h1', { class: 'question is-hero', id: 'q', 'data-fit': '18,52', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'What would you like to make possible?'),
     errorLine(state),
     comp)
   return ply([
     head(h('span', { class: 'label' }, state.resumed ? 'Welcome back · your words are kept' : 'No sign-up · start with the idea'),
       h('span', { class: 'label', style: { textAlign: 'right' } }, 'Idea → objective → statement → Decision Channel')),
     body,
-    foot(ghost('What Compás Caribe does', () => actions.openOverlay('about', 0, 'secondary')), primary('Begin', () => actions.submit(), { disabled: state.busy })),
+    foot(primary('Begin', () => actions.submit(), { disabled: state.busy })),
   ], 'is-welcome')
 }
 
@@ -118,7 +118,7 @@ export function declined(state, actions) {
       h('h1', { class: 'question', 'data-fit': '24,56', style: { margin: 0, maxHeight: 'var(--q-max)' } }, headline),
       pagedText({ paragraphs: [body], fit: '13,21', maxHeight: 'var(--w-max)' }),
       tiny() ? h('span') : yourWords(state, actions, { lines: 3 })),
-    foot(ghost('What Compás Caribe builds', () => actions.openOverlay('about', 0, 'secondary')), primary('Describe it differently', () => actions.back(), { autofocus: true })),
+    foot(primary('Describe it differently', () => actions.back(), { autofocus: true })),
   ], 'is-single')
 }
 
@@ -334,12 +334,6 @@ export function done(state, actions) {
 // ---------------------------------------------------------------------------
 // Overlays: full-stage states in the deeper tone. Paged, never scrolled.
 
-const ABOUT_PAGES = [
-  ['What Compás Caribe does', 'Compás Caribe turns ideas, problems and objectives into clearly defined, buildable software for businesses and organizations: the tools, sites and automations behind an operation. The work starts here, with your description, not with a sales call.'],
-  ['How a project moves', 'First the objective is separated from the tool you imagine, and written as a short project statement you can correct. Then, in Decision Channel, the statement becomes structured functional requirements, one decision at a time. Then it gets built.'],
-  ['What we do not do', 'We do not write essays, give advice, or answer general questions, and we do not pretend an AI has understood you when it has not. This prototype simulates the AI steps so you can see the shape of the experience without any account.'],
-]
-
 function noteText(n) {
   const parts = []
   if (n.plan) parts.push(`questions planned: ${n.plan.map(f => FOCUS_TITLES[f] || f).join(' › ')}`)
@@ -360,16 +354,7 @@ export function overlay(state, actions) {
   let footer
   let total = 1
 
-  if (name === 'about') {
-    total = ABOUT_PAGES.length
-    const [t, p] = ABOUT_PAGES[Math.min(page, total - 1)]
-    const wide = !isNarrow()
-    title = h('span', { class: 'label' }, h('b', null, 'Compás Caribe'), ` · ${page + 1} of ${total}`)
-    body = h('div', { style: { display: 'grid', gridTemplateRows: wide ? 'auto auto' : 'auto minmax(0, 1fr)', gap: '12px', minHeight: 0, alignSelf: wide ? 'center' : null } },
-      h('h2', { class: 'question', 'data-fit': '22,44', style: { margin: 0, maxHeight: 'var(--q-max)' } }, t),
-      pagedText({ paragraphs: [p], fit: '14,24', maxHeight: wide ? 'min(50vh, 480px)' : null }))
-    footer = [pager({ page, total, onPage: p2 => actions.overlayPage(p2), focusKey: 'overlay-pager' }), primary('Back', close, { autofocus: true })]
-  } else if (name === 'review') {
+  if (name === 'review') {
     title = h('span', { class: 'label' }, h('b', null, 'Understanding so far'), ' · simulated · select a part to revisit it')
     const rows = pagedList({
       items: [{ skeleton: true }, ...state.ctx.exchanges.map((e, i) => ({ e, i }))],

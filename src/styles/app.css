@@ -196,6 +196,7 @@ html[data-tiny='true'] .paged { gap: 2px; }
 .ply-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
 .ply-foot > :first-child { justify-self: start; min-width: 0; }
 .ply-foot > :last-child { justify-self: end; }
+.ply-foot > :only-child { grid-column: 1 / -1; }
 /* Phones: the primary takes its own full-width row under the secondary. */
 @media (max-width: 599px) {
   .ply-foot { grid-template-columns: minmax(0, 1fr); gap: 8px; }
@@ -255,7 +256,21 @@ html[data-tiny='true'] .paged { gap: 2px; }
   overflow: hidden;
   min-height: 0;
 }
-.question.is-hero { font-weight: 420; }
+/* Landing headline: Source Sans 3 Semibold, 36px mobile / 52px desktop, 1.1
+   line height, sentence case. --fit-max caps the size; the fitter only goes
+   below it when a short viewport leaves no room (zero scrolling comes first). */
+.question.is-hero {
+  --fit-max: 36px;
+  font-family: var(--font-headline);
+  font-weight: 600;
+  font-variation-settings: normal;
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+@media (min-width: 600px) { .question.is-hero { --fit-max: 52px; font-size: 52px; } }
 
 .reflection {
   font-family: var(--font-text);

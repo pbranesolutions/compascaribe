@@ -39,7 +39,7 @@ export function createRenderer({ root, live, journey, audit = false }) {
     if (s.stage === 'done') return 'Handoff prepared. Prototype: nothing was transmitted.'
     if (s.stage === 'declined') return 'This does not look like a project we build.'
     if (s.stage === 'uncertain') return 'We are not sure yet. One more sentence will help.'
-    if (s.stage === 'welcome') return 'What would you like to build?'
+    if (s.stage === 'welcome') return 'What would you like to make possible?'
     return ''
   }
 

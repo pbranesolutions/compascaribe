@@ -56,16 +56,19 @@ export function topBar(state, actions) {
 
   const readout = readoutFor(state)
   const hasWork = Boolean(state.ctx.submission) && state.stage !== 'welcome'
+  // The landing page has one purpose: describing the project. Prototype notes
+  // are offered once there is simulated output to explain.
+  const onLanding = state.stage === 'welcome'
   const understandingTarget = state.stage === 'done' || state.stage === 'handoff' ? 'record' : 'review'
 
   return h('header', { class: 'bar', role: 'banner' },
     h('div', { class: 'brand' }, 'Compás Caribe',
-      h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
+      onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
     h('nav', { class: 'bar-mid', 'aria-label': 'Journey' },
       h('div', { class: 'route', role: 'list', 'aria-label': 'Route through the journey' }, segs)),
     h('div', { class: 'bar-end' },
       readout ? h('span', { class: 'readout', html: readout }) : null,
-      h('button', { type: 'button', class: 'link bar-notes', 'data-focus-key': 'bar:notes-tiny', onClick: () => actions.openOverlay('notes', 0, 'bar:notes-tiny') }, 'Simulated'),
+      onLanding ? null : h('button', { type: 'button', class: 'link bar-notes', 'data-focus-key': 'bar:notes-tiny', onClick: () => actions.openOverlay('notes', 0, 'bar:notes-tiny') }, 'Simulated'),
       hasWork && state.ctx.exchanges.length ? h('button', { type: 'button', class: 'link bar-understanding', 'data-focus-key': 'bar:understanding', onClick: () => actions.openOverlay(understandingTarget, 0, 'bar:understanding') }, 'Understanding') : null,
       hasWork ? h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:reset', onClick: () => actions.reset() }, 'Start over') : null),
     h('div', { class: 'route-bar', 'aria-hidden': 'true' },

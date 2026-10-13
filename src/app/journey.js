@@ -3,7 +3,7 @@
 //
 // Stages:  welcome → qualifying → (declined | uncertain | discovery)
 //          discovery → composing → statement ⇄ refine → continue → handoff → done
-// Overlays (about, review, words, drafts, notes, record) sit on top of any
+// Overlays (review, words, drafts, notes, record) sit on top of any
 // stage and never change the stage.
 
 import {

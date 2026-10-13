@@ -89,7 +89,7 @@ The UI never imports the simulated engine directly; it calls the provider.
 
 `welcome → qualifying → (declined | uncertain | discovery) → composing → statement ⇄ refine → continue → handoff → done`
 
-Overlays (`about`, `review`, `words`, `drafts`, `notes`, `record`) sit on top of
+Overlays (`review`, `words`, `drafts`, `notes`, `record`) sit on top of
 any stage without changing it. Browser back and Escape step backwards. The
 journey is saved to `localStorage` and resumes for a week.
 

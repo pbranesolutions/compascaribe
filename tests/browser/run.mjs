@@ -64,6 +64,15 @@ async function fullJourney(page, vp) {
   await waitFor(page, 'window.__cc && window.__cc.state.stage === "welcome"')
   await auditAndShoot(page, vp, 'welcome')
 
+  // The landing page has one purpose: only the description box and Begin act.
+  const landing = JSON.parse(await evaluate(page, `JSON.stringify({
+    actions: [...document.querySelectorAll('#app button, #app a, #app input, #app textarea, #app select, #app [role=button], #app [tabindex]:not([tabindex="-1"])')].map(e => e.id || e.textContent.trim() || e.tagName),
+    disclosure: /simulated|prototype/i.test(document.querySelector('#app').textContent),
+  })`))
+  const landingOk = JSON.stringify(landing.actions) === JSON.stringify(['describe', 'Begin']) && !landing.disclosure
+  console.log(`${landingOk ? '✔' : '✖'} ${vp.name.padEnd(17)} landing-actions         ${JSON.stringify(landing)}`)
+  if (!landingOk) report.failures.push({ viewport: vp.name, label: 'landing-actions', issues: [{ kind: 'behaviour', detail: JSON.stringify(landing) }] })
+
   // Empty submit -> inline guidance, no transition.
   await click(page, '.btn-primary')
   await sleep(80)
@@ -125,12 +134,6 @@ async function fullJourney(page, vp) {
     await auditAndShoot(page, vp, `overlay-${name}`)
     await evaluate(page, 'window.__cc.actions.closeOverlay(); true')
   }
-  for (let p = 0; p < 3; p++) {
-    await evaluate(page, `window.__cc.actions.openOverlay("about", ${p}); true`)
-    await sleep(60)
-    await auditAndShoot(page, vp, `overlay-about-${p + 1}`)
-  }
-  await evaluate(page, 'window.__cc.actions.closeOverlay(); true')
 
   // Revisit an answer from the ledger, then return.
   await evaluate(page, 'window.__cc.actions.revisit(0); true')
@@ -286,7 +289,7 @@ async function keyboardAndMotion(page, vp) {
   console.log(`${ok ? '✔' : '✖'} ${vp.name.padEnd(17)} keyboard               ${JSON.stringify({ focused0, focused1, sel: sel.selection, step: s2.step })}`)
 
   // Escape closes an overlay.
-  await evaluate(page, 'window.__cc.actions.openOverlay("about", 0); true')
+  await evaluate(page, 'window.__cc.actions.openOverlay("notes", 0); true')
   await key(page, 'Escape')
   await sleep(40)
   const esc = await state(page)

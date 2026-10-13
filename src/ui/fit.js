@@ -56,7 +56,9 @@ export function fitAll(root = document) {
   const els = root.querySelectorAll('[data-fit]')
   for (const el of els) {
     const [min, max] = String(el.dataset.fit).split(',').map(Number)
-    fitText(el, { min: min || 13, max: max || 64 })
+    // A stylesheet may cap the size per breakpoint with --fit-max (e.g. 36px).
+    const cap = parseFloat(getComputedStyle(el).getPropertyValue('--fit-max'))
+    fitText(el, { min: min || 13, max: cap > 0 ? cap : max || 64 })
   }
 }
 
