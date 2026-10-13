@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createJourney } from '../src/app/journey.js'
+import { ASK_MORE, createJourney } from '../src/app/journey.js'
 import { createProvider } from '../src/domain/discovery/provider.js'
 import { CONTEXT_VERSION } from '../src/domain/context.js'
 
@@ -34,15 +34,53 @@ async function toStatement(j) {
   return j
 }
 
-test('short and empty input are handled inline, without classification', async () => {
+test('only empty or whitespace-only input is rejected inline; brevity is not', async () => {
   const j = createJourney({ storage: memoryStorage(), provider: provider(), latency: false, history: null })
   await j.actions.submit()
   assert.equal(j.state.stage, 'welcome')
-  assert.match(j.state.error.message, /sentence or two/)
-  j.actions.setDraft('welcome', 'hi')
+  assert.equal(j.state.error.message, "Tell us a little more about what you'd like to change or accomplish.")
+  assert.equal(j.state.error.message, ASK_MORE)
+  j.actions.setDraft('welcome', '   \n \t ')
   await j.actions.submit()
   assert.equal(j.state.stage, 'welcome')
-  assert.match(j.state.error.message, /few more words/)
+  assert.equal(j.state.error.message, ASK_MORE)
+  // Typing clears the message; two words that name real work go straight to discovery.
+  j.actions.setDraft('welcome', 'Automate invoicing')
+  assert.equal(j.state.error, null)
+  await j.actions.submit()
+  assert.equal(j.state.stage, 'discovery')
+  assert.match(j.state.ctx.exchanges[0].reflection, /Automate invoicing/)
+  assert.match(j.state.ctx.exchanges[0].question, /invoices/)
+})
+
+test('a short or vague idea with plausible intent gets one clarifying question, then discovery', async () => {
+  const j = createJourney({ storage: memoryStorage(), provider: provider(), latency: false, history: null })
+  j.actions.setDraft('welcome', 'A website')
+  await j.actions.submit()
+  assert.equal(j.state.stage, 'uncertain')
+  assert.equal(j.state.ctx.exchanges.length, 0, 'no discovery content is generated before the idea is clear')
+  j.actions.setDraft('clarify', 'for my bakery so customers can order cakes ahead instead of calling')
+  await j.actions.clarify()
+  assert.equal(j.state.stage, 'discovery')
+  // An empty clarification uses the same plain message.
+  const k = createJourney({ storage: memoryStorage(), provider: provider(), latency: false, history: null })
+  k.actions.setDraft('welcome', 'I have an idea')
+  await k.actions.submit()
+  assert.equal(k.state.stage, 'uncertain')
+  await k.actions.clarify()
+  assert.equal(k.state.error.message, ASK_MORE)
+})
+
+test('irrelevant input is declined, however short, and never reaches generative content', async () => {
+  for (const [text, reason] of [['hi', 'greeting-only'], ['write me a poem', 'off-topic'], ['reset my password', 'support-request'], ['asdfgh', 'unintelligible']]) {
+    const j = createJourney({ storage: memoryStorage(), provider: provider(), latency: false, history: null })
+    j.actions.setDraft('welcome', text)
+    await j.actions.submit()
+    assert.equal(j.state.stage, 'declined', text)
+    assert.equal(j.state.ctx.qualification.reason, reason, text)
+    assert.equal(j.state.ctx.exchanges.length, 0, `${text}: no questions generated`)
+    assert.equal(j.state.ctx.qualification.tier <= 1, true)
+  }
 })
 
 test('the journey reaches the statement, continue, and a simulated handoff', async () => {

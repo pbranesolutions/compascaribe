@@ -64,6 +64,11 @@ export function classify(text) {
     (n.injection ? 20 : 0) +
     (n.greeting ? 3 : 0)
 
+  // Brevity is never a reason on its own. A few words that name a tool or a piece of
+  // work ("Automate invoicing") are enough to begin; a few words that name nothing
+  // ("something for my business") get one clarifying question; only text that is
+  // actually irrelevant (greeting, noise, off-topic, pitch, support, injection) is
+  // turned away, and only tiers 3 and 4 ever reach generative inference.
   let tier
   let reason
   if (n.injection) {
@@ -75,9 +80,6 @@ export function classify(text) {
   } else if (n.greeting) {
     tier = TIERS.NOT_RELEVANT
     reason = 'greeting-only'
-  } else if (f.tooShort) {
-    tier = positive > 0 ? TIERS.PROBABLY_NOT : TIERS.NOT_RELEVANT
-    reason = 'too-short'
   } else if (negative >= 3 && positive < negative + 3) {
     tier = TIERS.NOT_RELEVANT
     reason = n.vendorPitch ? 'vendor-pitch' : n.jobSeeking ? 'job-seeking' : n.support ? 'support-request' : 'off-topic'
@@ -104,7 +106,7 @@ export function classify(text) {
   const dist = Math.min(...boundaries.map(b => Math.abs(positive - b)))
   let confidence = Math.max(0.35, Math.min(0.98, 0.5 + dist / 6))
   if (reason === 'instruction-injection' || reason === 'unintelligible' || reason === 'greeting-only') confidence = 0.97
-  if (reason === 'mixed-signals' || reason === 'too-short') confidence = 0.45
+  if (reason === 'mixed-signals') confidence = 0.45
 
   return {
     tier,

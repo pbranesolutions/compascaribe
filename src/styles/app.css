@@ -272,6 +272,26 @@ html[data-tiny='true'] .paged { gap: 2px; }
 }
 @media (min-width: 600px) { .question.is-hero { --fit-max: 52px; font-size: 52px; } }
 
+/* Landing: the headline and its one supporting sentence read as a unit. */
+.welcome-intro { display: grid; gap: 10px; min-width: 0; }
+.welcome-support {
+  --fit-max: 18px;
+  max-width: 34em;
+  font-family: var(--font-headline);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--muted);
+  text-wrap: balance;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-height: 0;
+}
+/* From tablet up each sentence is one unit, so lines break between ideas, not inside them. */
+@media (min-width: 600px) { .welcome-support { --fit-max: 21px; font-size: 21px; } .welcome-support > span { display: inline-block; } }
+/* Keyboard open or a very short window: the visitor is already writing, so the box gets the room. */
+html[data-tiny='true'] .welcome-support { display: none; }
+
 .reflection {
   font-family: var(--font-text);
   font-style: italic;
@@ -526,15 +546,60 @@ button.row:hover .v { text-decoration: underline; text-decoration-color: var(--h
 .receipt .k { font: 500 10px/1.2 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .receipt .v { font: 500 15px/1.3 var(--font-mono); color: var(--ink); overflow-wrap: anywhere; }
 
-/* Welcome: a centred block, the composer sized to what a description needs. */
-.is-welcome .ply-body { align-self: center; grid-template-rows: auto auto auto !important; gap: 14px; }
-.is-welcome .composer .ta-frame { height: clamp(112px, 34vh, 300px); }
-.is-welcome .composer textarea { font-size: 19px; line-height: 27px; }
-html[data-short='true'] .is-welcome .composer .ta-frame { height: clamp(96px, 32vh, 220px); }
-html[data-short='true'] .is-welcome .composer textarea { font-size: 17px; line-height: 24px; }
-html[data-tiny='true'] .is-welcome .ply-body { align-self: stretch; grid-template-rows: auto auto minmax(0, 1fr) !important; gap: 6px; }
-html[data-tiny='true'] .is-welcome .composer .ta-frame { height: 100%; }
-html[data-tiny='true'] .is-welcome .composer textarea { font-size: 15px; line-height: 20px; }
+/* --------------------------------------------------------------------------
+   Landing: one field with its action attached, colour only where it guides.
+   The box starts at three lines and grows with the text (see composer grow).
+-------------------------------------------------------------------------- */
+.ply.is-welcome { grid-template-rows: auto minmax(0, 1fr); background: transparent; }
+html[data-tiny='true'] .ply.is-welcome { grid-template-rows: minmax(0, 1fr); }
+/* A faint lamp-light behind the field, and a hint of the wine the journey warms to. */
+.app[data-stage='welcome'] .stage {
+  background:
+    radial-gradient(58% 46% at 38% 47%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 74%),
+    linear-gradient(180deg, transparent 50%, color-mix(in oklab, var(--wine) 60%, transparent) 100%);
+}
+.is-welcome .ply-body { align-self: start; margin-top: clamp(0px, 5vh, 64px); gap: 14px; }
+@media (min-width: 600px) and (min-height: 640px) { .is-welcome .ply-body { margin-top: clamp(0px, 11vh, 130px); } }
+html[data-short='true'] .is-welcome .ply-body { margin-top: 0; gap: 10px; }
+html[data-tiny='true'] .is-welcome .ply-body { gap: 6px; }
+.question.is-hero .hl { color: var(--accent); white-space: nowrap; }
+.welcome-note::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 9px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+
+.is-welcome .composer {
+  display: block;
+  max-width: 760px;
+  background: color-mix(in oklab, var(--ink) 9%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--ink) 38%, var(--surface));
+  border-radius: var(--radius);
+  transition: border-color var(--t-ui) var(--ease), box-shadow var(--t-ui) var(--ease);
+}
+.is-welcome .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent); }
+.is-welcome .ta-frame { height: auto; min-height: 0; padding: 14px 16px 4px; background: transparent; border: 0; }
+.is-welcome .composer textarea { font-family: var(--font-headline); font-weight: 400; font-size: 20px; line-height: 28px; }
+.is-welcome .composer textarea::placeholder { font-style: normal; color: color-mix(in oklab, var(--ink) 68%, var(--surface)); }
+.is-welcome .composer-meta { display: flex; align-items: center; gap: 12px; min-height: 0; padding: 6px 10px 10px 16px; }
+.is-welcome .composer-meta .note { flex: 1 1 auto; min-width: 0; }
+.is-welcome .meta-end { display: contents; }
+.is-welcome .count:empty, .is-welcome .folio:empty { display: none; }
+.is-welcome .count { font: 400 14px/1 var(--font-headline); letter-spacing: 0; white-space: nowrap; }
+.is-welcome .count b { font-weight: 600; }
+.is-welcome .btn-primary { flex: none; min-height: 48px; padding: 0 30px; background: var(--accent); color: var(--indigo); font-size: 17px; font-weight: 600; }
+.is-welcome .btn-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 84%, white); }
+@media (max-width: 599px) {
+  .ply.is-welcome .composer { max-width: none; }
+  .is-welcome .ta-frame { padding: 12px 12px 4px; }
+  .is-welcome .composer textarea { font-size: 18px; line-height: 26px; }
+  .is-welcome .composer-meta { padding: 4px 8px 8px; }
+  .is-welcome .composer-meta .note { display: none; }
+  .is-welcome .count .long { display: none; }
+  .is-welcome .btn-primary { flex: 1 1 auto; }
+}
+.is-welcome .error-slot { max-width: 760px; }
+.is-welcome .error { font-family: var(--font-headline); font-size: 16px; line-height: 1.35; }
+html[data-short='true'] .is-welcome .composer textarea { font-size: 18px; line-height: 26px; }
+html[data-short='true'] .is-welcome .btn-primary { min-height: 42px; }
+html[data-tiny='true'] .is-welcome .composer textarea { font-size: 17px; line-height: 24px; }
+html[data-tiny='true'] .is-welcome .btn-primary { min-height: 40px; }
 /* Own-words composer: two lines, same look. */
 .composer.is-short .ta-frame { height: auto; padding: 8px 12px; }
 #own { font-size: 17px; line-height: 24px; }
@@ -553,11 +618,11 @@ html[data-tiny='true'] .is-welcome .ply-head { display: none; }
 -------------------------------------------------------------------------- */
 
 /* Bounded text boxes: fitText shrinks type until content fits these. */
-:root { --q-max: 112px; --r-max: 90px; --w-max: 132px; --sk-max: 170px; }
-@media (min-width: 900px) and (min-height: 540px) { :root { --q-max: 240px; --r-max: 96px; --w-max: 200px; --sk-max: min(44vh, 420px); } }
-@media (min-width: 600px) and (max-width: 899px) { :root { --q-max: 150px; --r-max: 88px; --w-max: 160px; --sk-max: 220px; } }
-html[data-short='true'] { --q-max: 66px; --r-max: 58px; --w-max: 110px; --sk-max: 150px; }
-html[data-tiny='true'] { --q-max: 52px; --r-max: 50px; --w-max: 64px; --sk-max: 100px; }
+:root { --q-max: 112px; --r-max: 90px; --w-max: 132px; --sk-max: 170px; --s-max: 80px; }
+@media (min-width: 900px) and (min-height: 540px) { :root { --q-max: 240px; --r-max: 96px; --w-max: 200px; --sk-max: min(44vh, 420px); --s-max: 64px; } }
+@media (min-width: 600px) and (max-width: 899px) { :root { --q-max: 150px; --r-max: 88px; --w-max: 160px; --sk-max: 220px; --s-max: 64px; } }
+html[data-short='true'] { --q-max: 66px; --r-max: 58px; --w-max: 110px; --sk-max: 150px; --s-max: 56px; }
+html[data-tiny='true'] { --q-max: 52px; --r-max: 50px; --w-max: 64px; --sk-max: 100px; --s-max: 40px; }
 
 /* Phones: strip above the working ply; understanding ply hidden (reachable via the strip). */
 .ply-understand { display: none; }

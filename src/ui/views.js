@@ -3,6 +3,8 @@
 // through `actions`.
 
 import { LIMITS } from '../domain/context.js'
+import { clarifyPrompt } from '../domain/discovery/clarify.js'
+import { trimTo } from '../domain/discovery/language.js'
 import { FOCUS_TITLES, OVERLAY_TITLES, REFINEMENTS } from '../domain/discovery/vocabulary.js'
 import { summarizePayload } from '../domain/handoff/payload.js'
 import { h } from './dom.js'
@@ -50,27 +52,52 @@ const keyHint = (text) => (isTouch() ? null : text)
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Height the description field may use: whatever the page has left once the
+ * headline, support line, error slot and the card's own action row are laid out.
+ * Keeps the box growing line by line without ever pushing past the viewport.
+ */
+function landingRoom(body, frame) {
+  const ply = body.parentElement
+  if (!ply || !frame || !frame.isConnected) return 0
+  const cs = getComputedStyle(ply)
+  const head = ply.querySelector(':scope > .ply-head')
+  const headH = head && getComputedStyle(head).display !== 'none' ? head.offsetHeight + (parseFloat(cs.rowGap) || 0) : 0
+  const inner = ply.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0) - headH
+  const others = body.offsetHeight - frame.offsetHeight
+  return inner - others - (parseFloat(getComputedStyle(body).marginTop) || 0) - 2
+}
+
 export function welcome(state, actions) {
+  let body
+  // Begin lives inside the field's card: the action is the continuation of the input.
+  const begin = primary('Begin', () => actions.submit(), { disabled: state.busy })
   const comp = composer({
     id: 'describe',
     value: state.drafts.welcome,
     limit: LIMITS.submission,
-    placeholder: 'A sentence or a paragraph, in your own words. What it is, who it is for, what should change.',
+    placeholder: 'A sentence is fine. For example: customers book without calling us.',
     label: 'Describe what you would like to make possible',
     hint: keyHint('Ctrl + Enter to begin'),
     onInput: v => actions.setDraft('welcome', v),
     onSubmit: () => actions.submit(),
     autofocus: true,
+    grow: { minLines: 2, room: () => landingRoom(body, comp.querySelector('.ta-frame')) },
+    quietCount: true,
+    action: begin,
   })
-  const body = h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto minmax(0, 1fr)' } },
-    h('h1', { class: 'question is-hero', id: 'q', 'data-fit': '18,52', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'What would you like to make possible?'),
+  comp.querySelector('#describe')?.setAttribute('aria-describedby', 'welcome-support')
+  body = h('div', { class: 'ply-body' },
+    h('div', { class: 'welcome-intro' },
+      h('h1', { class: 'question is-hero', id: 'q', 'data-fit': '18,52', style: { margin: 0, maxHeight: 'var(--q-max)' } },
+        'What would you like to ', h('span', { class: 'hl' }, 'make possible'), '?'),
+      h('p', { class: 'welcome-support', id: 'welcome-support', 'data-fit': '13,21', style: { margin: 0, maxHeight: 'var(--s-max)' } },
+        h('span', null, "Tell us what you'd like to accomplish."), ' ', h('span', null, "We'll help you turn it into a clearly defined project."))),
     errorLine(state),
     comp)
   return ply([
-    head(h('span', { class: 'label' }, state.resumed ? 'Welcome back · your words are kept' : 'No sign-up · start with the idea'),
-      h('span', { class: 'label', style: { textAlign: 'right' } }, 'Idea → objective → statement → Decision Channel')),
+    head(h('span', { class: 'label welcome-note' }, state.resumed ? 'Welcome back · your words are kept' : 'No sign-up · start with the idea')),
     body,
-    foot(primary('Begin', () => actions.submit(), { disabled: state.busy })),
   ], 'is-welcome')
 }
 
@@ -89,10 +116,12 @@ function steppedProcessing(labels, interval) {
 }
 
 export function qualifying(state, actions) {
-  const steps = steppedProcessing(['Reading your words', 'Deciding whether this is a project we build', 'Planning the questions'], 380)
-  const words = h('p', { class: 'prose', 'data-fit': '15,24', style: { margin: 0, maxHeight: 'var(--w-max)' } }, state.ctx.submission?.text || '')
+  const steps = steppedProcessing(['Reading what you wrote', 'Finding what matters most in it', 'Choosing the first question'], 380)
+  // The visitor's own words stay centre stage while they are read. A long description
+  // shows its opening; the full text is kept in "Your words" from the first question on.
+  const words = h('p', { class: 'question', 'data-fit': '14,44', style: { margin: 0, maxHeight: 'var(--q-max)' } }, trimTo(state.ctx.submission?.text || '', 90))
   return ply([
-    head(h('span', { class: 'label' }, h('b', null, 'Reading'), ' · simulated classification')),
+    head(h('span', { class: 'label' }, h('b', null, 'You said'), ' · being read by the prototype')),
     h('div', { class: 'ply-body', style: { gridTemplateRows: 'minmax(0, 1fr) auto' } }, words, steps),
     foot(ghost('Say it differently', () => actions.back()), h('span', { class: 'label' }, state.busyLabel ? `${state.busyLabel}…` : '')),
   ])
@@ -100,12 +129,11 @@ export function qualifying(state, actions) {
 
 const DECLINE_COPY = {
   'greeting-only': ['Hello.', 'This is where prospective customers describe something they want built. Compás Caribe defines and builds software for businesses and organizations.'],
-  unintelligible: ['We could not read that.', 'Try a sentence or two in plain words: what it is, who it is for, and what should change.'],
+  unintelligible: ['We could not read that.', "Try a few plain words about what you'd like to change or accomplish."],
   'instruction-injection': ['This looks like something else.', 'This is where prospective customers describe something they want built. Compás Caribe defines and builds software for businesses and organizations.'],
   'vendor-pitch': ['This is for prospective customers.', 'If you are offering services rather than describing a project, write to hello@compascaribe.com instead.'],
   'job-seeking': ['This is for prospective customers.', 'If you are looking for work with Compás Caribe rather than describing a project, write to hello@compascaribe.com.'],
   'support-request': ['This is not a support channel.', 'For help with an existing account or order, write to hello@compascaribe.com. This space is for describing new projects.'],
-  'too-short': ['That is too short to read.', 'A sentence or two is enough: what it is, who it is for, and what should change.'],
   'off-topic': ['This looks like something else.', 'Compás Caribe defines and builds software for businesses and organizations: tools, websites and automations behind an operation. Questions, writing and advice are outside what we do.'],
 }
 
@@ -123,12 +151,7 @@ export function declined(state, actions) {
 }
 
 export function uncertain(state, actions) {
-  const reason = state.ctx.qualification?.reason
-  const reflection = reason === 'too-short'
-    ? 'That is a start, but too short to read. One more sentence will do.'
-    : reason === 'mixed-signals'
-      ? 'There may be a project in this, but it reads two ways. One more sentence will settle it.'
-      : 'There may be a project in this, but we cannot yet tell what it would be.'
+  const { reflection, question } = clarifyPrompt(state.ctx.qualification?.reason, state.ctx.submission?.text)
   const comp = composer({
     id: 'clarify',
     value: state.drafts.clarify,
@@ -144,7 +167,7 @@ export function uncertain(state, actions) {
     head(h('span', { class: 'label' }, h('b', null, 'Not sure yet'), ' · one more sentence')),
     h('div', { class: 'ply-body', style: { gridTemplateRows: 'auto auto auto minmax(0, 1fr)' } },
       pagedText({ paragraphs: [reflection], fit: '12,20', className: 'reflection', maxHeight: 'var(--r-max)' }),
-      h('h1', { class: 'question', id: 'q', 'data-fit': '22,44', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'What would it help you do, and for whom?'),
+      h('h1', { class: 'question', id: 'q', 'data-fit': '22,44', style: { margin: 0, maxHeight: 'var(--q-max)' } }, question),
       errorLine(state),
       comp),
     foot(ghost('Say it differently', () => actions.back()), primary('Read it again', () => actions.clarify(), { disabled: state.busy })),

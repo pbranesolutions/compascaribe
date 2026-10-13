@@ -4,6 +4,7 @@ import {
   LIMITS, allAnswered, answersByFocus, createContext, withAnswer, withExchanges,
   withQualification, withStatement, withSubmission,
 } from '../src/domain/context.js'
+import { clarifyPrompt, quoteBrief } from '../src/domain/discovery/clarify.js'
 import { createProvider } from '../src/domain/discovery/provider.js'
 import { REFINEMENTS } from '../src/domain/discovery/statement.js'
 import { buildHandoffPayload, HANDOFF_SCHEMA } from '../src/domain/handoff/payload.js'
@@ -24,6 +25,10 @@ const INPUTS = [
   'automate payroll for 40 employees across two locations, currently done in excel every two weeks',
   'Website for my bakery',
   'A dashboard for our construction crews to log hours and materials from the job site',
+  'Automate invoicing',
+  'Build a booking app',
+  'booking app',
+  'Automatizar facturación',
   'Our school sends grades home on paper and parents call the office all day asking about attendance',
   'inventory system for a small pharmacy with two branches, we run out of stock without noticing',
   ('Our small clinic has three doctors and the front desk books appointments by phone and writes them in a paper agenda. ').repeat(4),
@@ -244,4 +249,34 @@ test('synonyms never double up as a subject', async () => {
   const { exchanges } = await openFor('Juan Pérez sells car parts and tracks sales and invoicing on paper')
   assert.doesNotMatch(exchanges[0].reflection, /sales and sales|invoices and invoicing/)
   assert.doesNotMatch(exchanges[0].reflection, /your plant/)
+})
+
+test('a few words open as a continuation of the visitor\'s own idea, not a generic prompt', async () => {
+  for (const [text, subject] of [['Automate invoicing', 'invoices'], ['Build a booking app', 'bookings']]) {
+    const { exchanges } = await openFor(text)
+    const first = exchanges[0]
+    assert.match(first.reflection, new RegExp(`^You said “${text}”`), first.reflection)
+    assert.ok(first.question.includes(subject), `question names the subject: ${first.question}`)
+    assert.ok(first.question.length <= 90 && first.reflection.length <= 150)
+  }
+  // A tool named with nothing else asks what the tool should change, in the visitor's terms.
+  const { exchanges } = await openFor('I want an app')
+  assert.match(exchanges[0].question, /an app/)
+})
+
+test('the clarifying question echoes what was written and asks the one thing that moves it forward', async () => {
+  const q = async (text) => clarifyPrompt((await provider.qualify(withSubmission(createContext(), text))).reason, text)
+  const site = await q('A website')
+  assert.equal(site.reflection, 'You said “A website”. One more sentence is enough to begin.')
+  assert.equal(site.question, 'What should your website help you do?')
+  const crm = await q('CRM')
+  assert.equal(crm.question, 'What should your CRM help you do?')
+  const work = await q('invoicing')
+  assert.equal(work.question, 'What would you like to change about invoicing?')
+  const none = await q('something for my business')
+  assert.match(none.reflection, /cannot yet tell/)
+  assert.equal(none.question, 'What would it help you do, and for whom?')
+  for (const p of [site, crm, work, none]) assert.ok(p.reflection.length <= 150 && p.question.length <= 90)
+  assert.equal(quoteBrief('x'.repeat(80)), null, 'long text is not quoted back')
+  assert.equal(quoteBrief('  Build an app.  '), '“Build an app”')
 })

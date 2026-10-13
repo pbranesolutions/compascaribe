@@ -138,7 +138,11 @@ Every simulated step is labelled in the interface (*simulated*, *prototype*).
 
 1. **Jev**: implement `qualify()` against the Jev endpoint, keep the
    `{ tier, label, confidence, reason }` shape. Keep the inline validation
-   for empty and very short input in front of it.
+   for empty and whitespace-only input in front of it. Length is never judged:
+   a few words that name real work ("Automate invoicing") go straight to
+   discovery, a vague idea gets one clarifying question (tier 2), and only
+   irrelevant input is declined (tier 1). Only tiers 3 and 4 reach generative
+   inference.
 2. **Claude**: implement a remote `DiscoveryProvider` with the same five
    methods, served by a Compás Caribe worker that enforces rate limits,
    session budgets and input limits before inference. `routing.js` already

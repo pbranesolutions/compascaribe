@@ -5,6 +5,7 @@
 // feed the project statement. Copy limits (enforced by tests): reflection
 // ≤ 150 chars, question ≤ 90 chars, option label ≤ 46 chars.
 
+import { quoteBrief } from './clarify.js'
 import { cap, embed, isUncountable, plural, toYou, trimTo } from './language.js'
 
 /** First variant that fits the cap, else the last one trimmed. */
@@ -144,8 +145,10 @@ export function buildObjective(u, f, answers) {
     value: { objectiveId: id },
   }))
   let question = 'What should be different when this works?'
-  if (u.solutionFirst) question = 'What should be different once it exists?'
+  if (u.solutionFirst) question = u.artifact ? `What should ${u.artifact} change for you?` : 'What should be different once it exists?'
   else if (u.purposeKind === 'result' && u.whoNoun) question = `What should that change for your ${u.whoNoun}?`
+  // A few words that name the work ("Automate invoicing"): ask about that work, in the visitor's terms.
+  else if (!u.subjectGeneric && !u.purpose && !u.painClause) question = `What should be different about your ${u.subject} once this works?`
   return {
     reflection: openingReflection(u, f),
     question: trimTo(question, 90),
@@ -276,6 +279,12 @@ export function openingReflection(u, f) {
     return firstFit(150,
       `You are describing something for others to use${u.subjectGeneric ? '' : `, around ${u.subject}`}. Before features, the result it must produce for them has to be clear.`,
       'You are describing something for others to use. The result it must produce for them comes first.')
+  }
+  // A few words and nothing more: start from exactly what was said, so the first
+  // reply reads as the next line of the visitor's own thought.
+  const said = f.wordCount <= 6 && !u.purpose && !u.painClause && !u.who && !u.domainOps ? quoteBrief(f.raw) : null
+  if (said) {
+    return trimTo(`You said ${said}. Let's start there.`, 150)
   }
   if (u.solutionFirst && u.subjectGeneric) {
     return trimTo(`You've named the tool: ${u.artifact}. What it has to achieve is still open, so that is where we start.`, 150)

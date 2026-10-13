@@ -20,7 +20,6 @@ import { looksSpanish, translateHints } from './spanish.js'
  * @property {string[]} tokens
  * @property {number} wordCount
  * @property {boolean} gibberish
- * @property {boolean} tooShort
  * @property {string[]} build
  * @property {string[]} artifacts
  * @property {string[]} operations
@@ -209,7 +208,6 @@ export function analyze(raw) {
   }
 
   const solutionFirst = artifacts.length > 0 && SOLUTION_LEADS.some(re => re.test(text)) && pains.length === 0 && outcomes.length === 0
-  const tooShort = wordCount < 3 || normalized.length < 12
   const organization = captureOperation(text)
   const purpose = capturePurpose(text)
   // Substance means a subject to talk about: an outcome word alone ("great job") is not one.
@@ -224,7 +222,6 @@ export function analyze(raw) {
     tokens,
     wordCount,
     gibberish,
-    tooShort,
     build,
     artifacts,
     operations,

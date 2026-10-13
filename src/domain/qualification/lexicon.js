@@ -177,7 +177,7 @@ export const VENDOR_PITCH_WEAK_PATTERNS = [
 ]
 
 export const SUPPORT_PATTERNS = [
-  /\b(my account|reset my password|password reset|refund|cancel my (subscription|order|account)|where is my order|login (issue|problem)|can't log ?in|cannot log ?in|invoice from you|your invoice|charged me)\b/i,
+  /\b(my account|reset (my |the |your )?password|forgot (my |the )?password|password reset|refund|cancel my (subscription|order|account)|where is my order|login (issue|problem)|can't log ?in|cannot log ?in|invoice from you|your invoice|charged me)\b/i,
 ]
 
 export const INJECTION_PATTERNS = [

@@ -56,6 +56,8 @@ export function topBar(state, actions) {
 
   const readout = readoutFor(state)
   const hasWork = Boolean(state.ctx.submission) && state.stage !== 'welcome'
+  // Progress is shown once there is progress to show: not before the visitor has begun.
+  const showRoute = state.stage !== 'welcome'
   // The landing page has one purpose: describing the project. Prototype notes
   // are offered once there is simulated output to explain.
   const onLanding = state.stage === 'welcome'
@@ -64,16 +66,18 @@ export function topBar(state, actions) {
   return h('header', { class: 'bar', role: 'banner' },
     h('div', { class: 'brand' }, 'Compás Caribe',
       onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
-    h('nav', { class: 'bar-mid', 'aria-label': 'Journey' },
-      h('div', { class: 'route', role: 'list', 'aria-label': 'Route through the journey' }, segs)),
+    showRoute
+      ? h('nav', { class: 'bar-mid', 'aria-label': 'Journey' },
+        h('div', { class: 'route', role: 'list', 'aria-label': 'Route through the journey' }, segs))
+      : h('div', { class: 'bar-mid' }),
     h('div', { class: 'bar-end' },
       readout ? h('span', { class: 'readout', html: readout }) : null,
       onLanding ? null : h('button', { type: 'button', class: 'link bar-notes', 'data-focus-key': 'bar:notes-tiny', onClick: () => actions.openOverlay('notes', 0, 'bar:notes-tiny') }, 'Simulated'),
       hasWork && state.ctx.exchanges.length ? h('button', { type: 'button', class: 'link bar-understanding', 'data-focus-key': 'bar:understanding', onClick: () => actions.openOverlay(understandingTarget, 0, 'bar:understanding') }, 'Understanding') : null,
       hasWork ? h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:reset', onClick: () => actions.reset() }, 'Start over') : null),
-    h('div', { class: 'route-bar', 'aria-hidden': 'true' },
+    showRoute ? h('div', { class: 'route-bar', 'aria-hidden': 'true' },
       h('div', { style: { display: 'grid', gridAutoFlow: 'column', gap: '3px', height: '3px' } },
-        ROUTE.map((r, i) => h('span', { style: { background: i < routeIndex ? STAGE_COLORS[r.id] : i === routeIndex ? 'var(--ink)' : 'var(--hair)', outline: i < routeIndex ? '1px solid var(--ink)' : 'none', outlineOffset: '-1px', borderRadius: '2px' } })))),
+        ROUTE.map((r, i) => h('span', { style: { background: i < routeIndex ? STAGE_COLORS[r.id] : i === routeIndex ? 'var(--ink)' : 'var(--hair)', outline: i < routeIndex ? '1px solid var(--ink)' : 'none', outlineOffset: '-1px', borderRadius: '2px' } })))) : null,
   )
 }
 
@@ -229,10 +233,18 @@ export function strip(state, actions) {
  * box, it shows folios: whole-line pages that follow the caret, flipped with
  * a pager. The textarea itself has no padding or border, so a page is an
  * exact number of lines; the frame around it carries the look.
+ *
+ * Options for the landing page:
+ *   grow        { minLines, room }  Start small and add whole lines as the text
+ *               grows, up to room() px of frame height. The limit stays the
+ *               same on every screen; text beyond the box turns into pages.
+ *   quietCount  Show "N characters left" only once the limit is near.
+ *   action      A node (the primary button) placed in the meta row, so the
+ *               action reads as the continuation of the field.
  */
-export function composer({ id, value, limit, placeholder, onInput, onSubmit, label, hint, rows, autofocus, enterSubmits = false, lang = 'en' }) {
+export function composer({ id, value, limit, placeholder, onInput, onSubmit, label, hint, rows, autofocus, enterSubmits = false, lang = 'en', grow = null, quietCount = false, action = null }) {
   const count = h('span', { class: 'count' })
-  const note = h('span', { class: 'note' }, hint || '')
+  const note = h('span', { class: 'note', 'aria-live': grow ? 'polite' : null }, hint || '')
   const folio = h('span', { class: 'folio' })
   const ta = h('textarea', {
     id,
@@ -309,18 +321,56 @@ export function composer({ id, value, limit, placeholder, onInput, onSubmit, lab
     const y = caretY()
     showPage(Math.floor(Math.max(0, y - 1) / g.pageH))
   }
+  // Whole lines the current text needs at the current width (matches the textarea's wrapping).
+  const neededLines = (text = ta.value) => {
+    const cs = getComputedStyle(ta)
+    const m = document.createElement('div')
+    for (const prop of ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'wordSpacing']) m.style[prop] = cs[prop]
+    m.style.cssText += ';position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:break-word;height:auto;padding:0;border:0'
+    m.style.width = `${ta.clientWidth}px`
+    m.textContent = text + '\u200b'
+    document.body.appendChild(m)
+    const hgt = m.scrollHeight
+    m.remove()
+    return Math.max(1, Math.round(hgt / lineH))
+  }
+  const growNow = () => {
+    ta.style.fontSize = ''
+    ta.style.lineHeight = ''
+    const cs = getComputedStyle(ta)
+    lineH = parseFloat(cs.lineHeight) || Math.round(parseFloat(cs.fontSize) * 1.42)
+    const fcs = getComputedStyle(frame)
+    const padV = (parseFloat(fcs.paddingTop) || 0) + (parseFloat(fcs.paddingBottom) || 0)
+    const roomLines = Math.max(1, Math.floor((grow.room() - padV) / lineH))
+    // At rest the box is as small as it can be while still showing the whole prompt.
+    const minLines = Math.min(Math.max(grow.minLines || 2, ta.placeholder ? neededLines(ta.placeholder) : 1), roomLines)
+    lines = Math.max(minLines, Math.min(neededLines(), roomLines))
+    ta.style.height = `${lines * lineH}px`
+  }
+  const countLabel = (left) => {
+    const over = left < 0
+    count.replaceChildren(h('b', null, String(Math.abs(left))), h('span', { class: 'long' }, ' characters'), over ? ' over' : ' left')
+  }
   const refreshCount = () => {
     const len = ta.value.length
-    const max = Math.min(limit, Math.max(capacity, len))
+    // Never below what is already written, so existing text is never cut.
+    const max = grow ? limit : Math.min(limit, Math.max(capacity, len))
     ta.maxLength = Math.max(max, len)
-    count.textContent = `${len} / ${max}`
+    if (quietCount) {
+      if (len >= max * 0.6) countLabel(max - len)
+      else count.replaceChildren()
+    } else {
+      count.textContent = `${len} / ${max}`
+    }
     count.classList.toggle('is-hot', len >= max * 0.9)
     const g = geometry()
     if (g.total > 1) note.textContent = 'Pages turn as you type'
+    else if (grow) note.textContent = len >= max ? 'That is the limit here · detail comes next' : hint || ''
     else note.textContent = capacity < limit && len >= capacity - 1 ? 'That is the space on this screen · detail comes next' : hint || ''
   }
   ta.addEventListener('input', () => {
     onInput(ta.value)
+    if (grow) growNow()
     refreshCount()
     followCaret()
   })
@@ -337,9 +387,16 @@ export function composer({ id, value, limit, placeholder, onInput, onSubmit, lab
   ta.addEventListener('wheel', e => e.preventDefault(), { passive: false })
   ta.addEventListener('touchmove', e => e.preventDefault(), { passive: false })
 
-  const wrap = h('div', { class: 'composer' }, frame, h('div', { class: 'composer-meta' }, note, h('span', { class: 'meta-end' }, folio, count)))
+  const wrap = h('div', { class: 'composer' }, frame, h('div', { class: 'composer-meta' }, note, h('span', { class: 'meta-end' }, folio, count), action))
   const baseSize = () => parseFloat(ta.dataset.baseSize || (ta.dataset.baseSize = getComputedStyle(ta).fontSize))
   wrap.measure = () => {
+    if (grow) {
+      if (!frame.isConnected) return
+      growNow()
+      refreshCount()
+      followCaret()
+      return
+    }
     if (!frame.isConnected || frame.clientHeight < 20) return
     // Shrink the type (down to 13px) until the current text fits the frame,
     // then size the textarea to a whole number of lines.

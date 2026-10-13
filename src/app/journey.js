@@ -16,6 +16,10 @@ import { sendToDecisionChannel } from '../domain/handoff/transport.js'
 
 export { ROUTE } from './route.js'
 
+// The only inline validation: nothing (or only whitespace) was written. Length is never
+// judged; whether the words describe a project is the qualifier's call, not a rule here.
+export const ASK_MORE = "Tell us a little more about what you'd like to change or accomplish."
+
 const STORAGE_KEY = 'compascaribe.journey.v1'
 const RESUME_WINDOW_MS = 1000 * 60 * 60 * 24 * 7
 
@@ -246,8 +250,7 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
     async submit() {
       if (state.busy) return
       const text = state.drafts.welcome.trim()
-      if (!text) return set({ error: { message: 'Start with a sentence or two: what is it, and who is it for?' } })
-      if (text.split(/\s+/).length < 3 && text.length < 24) return set({ error: { message: 'A few more words will help: what should it do, and for whom?' } })
+      if (!text) return set({ error: { message: ASK_MORE } })
       if (text.length > LIMITS.submission) return set({ error: { message: `That is more than fits here (${LIMITS.submission} characters). Trim it a little; detail comes next.` } })
       const ctx = withSubmission(createContext(), text)
       set({ ctx, stepIndex: 0, selection: null, ownWordsOpen: false, parts: null, receipt: null, payload: null, sketch: null, resumed: false, returnTo: null })
@@ -258,7 +261,7 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
     async clarify() {
       if (state.busy) return
       const text = state.drafts.clarify.trim()
-      if (!text) return set({ error: { message: 'Add one sentence: what would it help you do, and for whom?' } })
+      if (!text) return set({ error: { message: ASK_MORE } })
       if (text.length > LIMITS.clarification) return set({ error: { message: `Keep it under ${LIMITS.clarification} characters; detail comes next.` } })
       const ctx = withClarification(state.ctx, text)
       set({ ctx, drafts: { ...state.drafts, clarify: '' } })

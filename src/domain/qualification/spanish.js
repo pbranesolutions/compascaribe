@@ -84,7 +84,7 @@ const ORDERED = [...PHRASES].sort((a, b) => b[0].length - a[0].length)
 const RE = new RegExp(ORDERED.map(([es]) => `(?<![\\p{L}])${es.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`).join('|'), 'giu')
 const MAP = new Map(ORDERED.map(([es, en]) => [es.toLowerCase(), en]))
 
-const SPANISH_MARKERS = /\b(quiero|quisiera|necesito|necesitamos|para que|tengo|tenemos|pedidos|clientes|negocio|empresa|citas|una app|página|pagina|sistema|hola|perdemos|nuestra|nuestro)\b/i
+const SPANISH_MARKERS = /\b(quiero|quisiera|necesito|necesitamos|para que|tengo|tenemos|pedidos|clientes|negocio|empresa|citas|una app|página|pagina|sistema|hola|perdemos|nuestra|nuestro|automatizar|facturación|facturacion|inventario|reservas|mejorar|crear|construir|aplicación|aplicacion)\b/i
 
 /** True when the text reads as (at least partly) Spanish. */
 export function looksSpanish(text) {
