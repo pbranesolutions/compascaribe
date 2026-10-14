@@ -9,12 +9,15 @@
 // The same tone and question rules hold every later turn (turn.js builds on the
 // primitives exported here), so the agent speaks with one standard throughout.
 
-export const OPENING_SCHEMA_ID = 'compascaribe.conversation/1'
+export const OPENING_SCHEMA_ID = 'compascaribe.conversation/2'
 
 export const DESCRIBES = Object.freeze(['problem', 'opportunity', 'outcome', 'solution', 'unclear'])
 
 /** What the question is about: the parts of a project's purpose, in the order they are usually easiest to answer. */
 export const EXPLORES = Object.freeze(['situation', 'people', 'outcome', 'stakes'])
+
+/** How many distinct objectives the opening may record from the description, and how long each may be. */
+export const OPENING_OBJECTIVES = Object.freeze({ max: 6, chars: 160 })
 
 /**
  * JSON Schema for structured output. Field order is generation order: the model
@@ -26,12 +29,14 @@ export const OPENING_SCHEMA = Object.freeze({
   type: 'object',
   properties: {
     describes: { type: 'string', enum: [...DESCRIBES] },
+    // Every distinct thing the description says the project is for, before one question is chosen: the whole scope, from the first reply on.
+    objectives: { type: 'array', items: { type: 'string' } },
     uncertainty: { type: 'string' },
     explores: { type: 'string', enum: [...EXPLORES] },
     reflection: { type: 'string' },
     question: { type: 'string' },
   },
-  required: ['describes', 'uncertainty', 'explores', 'reflection', 'question'],
+  required: ['describes', 'objectives', 'uncertainty', 'explores', 'reflection', 'question'],
   additionalProperties: false,
 })
 
@@ -136,8 +141,30 @@ export function toneProblem(reflection, ...others) {
 }
 
 /**
+ * The objectives the opening (or a history carrying it) recorded: a bounded,
+ * tidied list of short strings, or null when it is not one. An empty list is
+ * valid: a vague description names no objective yet.
+ *
+ * @returns {string[] | null}
+ */
+export function normalizeObjectives(raw) {
+  if (!Array.isArray(raw)) return null
+  const out = []
+  const seen = new Set()
+  for (const item of raw) {
+    if (typeof item !== 'string') return null
+    const t = tidy(item).slice(0, OPENING_OBJECTIVES.chars)
+    if (!t || seen.has(t.toLowerCase())) continue
+    seen.add(t.toLowerCase())
+    out.push(t)
+    if (out.length >= OPENING_OBJECTIVES.max) break
+  }
+  return out
+}
+
+/**
  * @param {unknown} raw  the parsed JSON the model returned
- * @returns {{ ok: true, repaired: string|null, opening: { describes: string, uncertainty: string, explores: string, reflection: string, question: string } } | { ok: false, reason: string }}
+ * @returns {{ ok: true, repaired: string|null, opening: { describes: string, objectives: string[], uncertainty: string, explores: string, reflection: string, question: string } } | { ok: false, reason: string }}
  */
 export function validateOpening(raw) {
   const fail = reason => ({ ok: false, reason })
@@ -146,6 +173,8 @@ export function validateOpening(raw) {
   if (typeof describes !== 'string' || typeof uncertainty !== 'string' || typeof explores !== 'string' || typeof reflection !== 'string' || typeof question !== 'string') return fail('shape')
   if (!DESCRIBES.includes(describes)) return fail('describes')
   if (!EXPLORES.includes(explores)) return fail('explores')
+  const objectives = normalizeObjectives(raw.objectives)
+  if (!objectives) return fail('objectives')
 
   let r = tidy(reflection)
   let q = tidy(question)
@@ -175,5 +204,5 @@ export function validateOpening(raw) {
   const tone = toneProblem(r, q)
   if (tone) return fail(tone)
 
-  return { ok: true, repaired: repairs.length ? repairs.join('+') : null, opening: { describes, uncertainty: tidy(uncertainty).slice(0, L.uncertaintyChars), explores, reflection: r, question: q } }
+  return { ok: true, repaired: repairs.length ? repairs.join('+') : null, opening: { describes, objectives, uncertainty: tidy(uncertainty).slice(0, L.uncertaintyChars), explores, reflection: r, question: q } }
 }

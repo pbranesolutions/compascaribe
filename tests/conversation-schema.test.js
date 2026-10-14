@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { OPENING_SCHEMA, validateOpening } from '../src/domain/conversation/schema.js'
+import { normalizeObjectives, OPENING_OBJECTIVES, OPENING_SCHEMA, validateOpening } from '../src/domain/conversation/schema.js'
 import { GOOD } from './conversation-support.js'
 
 const check = (patch) => validateOpening({ ...GOOD, ...patch })
@@ -11,7 +11,8 @@ test('a well-formed opening passes and is returned tidied', () => {
   assert.equal(r.ok, true)
   assert.equal(r.opening.reflection, 'Orders arrive over WhatsApp and get retyped into a notebook.')
   assert.equal(r.opening.question, GOOD.question)
-  assert.deepEqual(Object.keys(r.opening), ['describes', 'uncertainty', 'explores', 'reflection', 'question'])
+  assert.deepEqual(Object.keys(r.opening), ['describes', 'objectives', 'uncertainty', 'explores', 'reflection', 'question'])
+  assert.deepEqual(r.opening.objectives, GOOD.objectives)
 })
 
 test('both parts are required: a missing or empty reflection or question is refused', () => {
@@ -105,7 +106,21 @@ test('Spanish openings pass the same structure', () => {
 })
 
 test('the structured-output schema asks for the four fields, in the order the model should settle them', () => {
-  assert.deepEqual(Object.keys(OPENING_SCHEMA.properties), ['describes', 'uncertainty', 'explores', 'reflection', 'question'])
-  assert.deepEqual(OPENING_SCHEMA.required, ['describes', 'uncertainty', 'explores', 'reflection', 'question'])
+  assert.deepEqual(Object.keys(OPENING_SCHEMA.properties), ['describes', 'objectives', 'uncertainty', 'explores', 'reflection', 'question'])
+  assert.deepEqual(OPENING_SCHEMA.required, ['describes', 'objectives', 'uncertainty', 'explores', 'reflection', 'question'])
   assert.equal(OPENING_SCHEMA.additionalProperties, false)
+})
+
+test('the opening records every distinct objective in the description, bounded, and an empty list is a valid reading of a vague one', () => {
+  const two = check({ objectives: ['  Residents receive important building communications ', 'Residents reserve shared amenities (tennis court, common areas)', 'residents receive important building communications'] })
+  assert.equal(two.ok, true)
+  assert.deepEqual(two.opening.objectives, ['Residents receive important building communications', 'Residents reserve shared amenities (tennis court, common areas)'], 'tidied, duplicates dropped')
+  assert.deepEqual(check({ objectives: [] }).opening.objectives, [])
+  assert.equal(reason({ objectives: 'communications' }), 'objectives')
+  assert.equal(reason({ objectives: [1, 2] }), 'objectives')
+  assert.equal(validateOpening({ ...GOOD, objectives: undefined }).reason, 'objectives')
+  const many = normalizeObjectives(Array.from({ length: 12 }, (_, i) => `objective ${i} ${'x'.repeat(300)}`))
+  assert.equal(many.length, OPENING_OBJECTIVES.max)
+  assert.equal(many[0].length, OPENING_OBJECTIVES.chars)
+  assert.equal(normalizeObjectives(null), null)
 })

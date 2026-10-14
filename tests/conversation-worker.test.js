@@ -168,7 +168,10 @@ test('simultaneous requests for one qualification, or for the same words, share 
   const rs = await Promise.all([one, two, three])
   assert.deepEqual(rs.map(r => r.status), [200, 200, 200])
   assert.equal(calls.length, 1)
-  assert.deepEqual(await readJson(rs[0]), await readJson(rs[1]))
+  // The same reply for both; each gets its own renewed qualification, issued when its response was written (a millisecond apart, at times).
+  const [first, second] = [await readJson(rs[0]), await readJson(rs[1])]
+  assert.ok(first.qualification?.token && second.qualification?.token)
+  assert.deepEqual({ ...first, qualification: null }, { ...second, qualification: null })
 })
 
 test('failures are allowed a few more tries, then the visitor is re-checked rather than billed again', async () => {
@@ -334,7 +337,7 @@ test('client: anything that is not a well-formed opening is a failure; it never 
   assert.deepEqual(await t(async () => new Response('<html>502</html>', { status: 502 })), { ok: false, failure: 'malformed' })
   assert.deepEqual(await t(async () => new Response('{}', { status: 429 })), { ok: false, failure: 'rate_limited' })
   // A 200 whose opening breaks the structure is not shown.
-  const bodyWith = opening => new Response(JSON.stringify({ schema: 'compascaribe.conversation/1', status: 'ok', opening, model: 'm', usage: null, latencyMs: 1 }), { status: 200 })
+  const bodyWith = opening => new Response(JSON.stringify({ schema: 'compascaribe.conversation/2', status: 'ok', opening, model: 'm', usage: null, latencyMs: 1 }), { status: 200 })
   assert.equal((await t(async () => bodyWith({ ...GOOD, question: 'One? Two?' }))).ok, false)
   assert.equal((await t(async () => bodyWith({ ...GOOD, reflection: '' }))).ok, false)
   assert.equal((await t(async () => bodyWith(GOOD))).ok, true)

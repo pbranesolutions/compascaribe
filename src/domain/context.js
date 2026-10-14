@@ -40,7 +40,7 @@ export const LIMITS = Object.freeze({
  * @property {string} at
  * @property {string} [reflection]   compas: what was understood
  * @property {string} [question]     compas: the one question asked
- * @property {{describes:string, uncertainty:string, explores:string}} [analysis]   compas: private notes for later turns, never displayed
+ * @property {{describes:string, objectives?:string[], uncertainty:string, explores:string}} [analysis]   compas: private notes for later turns, never displayed
  * @property {{model:string|null, latencyMs:number|null, usage:Object|null}} [source]   compas: how it was generated
  * @property {string} [text]         visitor: the answer, as written
  * @property {string} [to]           visitor: id of the turn answered
@@ -169,7 +169,7 @@ export function exchangeCount(ctx) {
   return turnsOf(ctx).filter(t => t.role === 'visitor' && t.kind === 'reply').length
 }
 
-/** What the agent last understood about the project: confirmed facts, interpretations, what is open. Null until the first follow-up. */
+/** What the agent last understood about the project: its objectives, who it is for, the outcomes, the evidence, what is inferred and what is open. Null until the first follow-up. */
 export function latestUnderstanding(ctx) {
   const t = [...turnsOf(ctx)].reverse().find(x => x.role === 'compas' && x.understanding)
   return t ? t.understanding : null
@@ -190,7 +190,7 @@ export function withOpening(ctx, opening, source = {}) {
     at: now(),
     reflection: opening.reflection,
     question: opening.question,
-    analysis: { describes: opening.describes, uncertainty: opening.uncertainty, explores: opening.explores },
+    analysis: { describes: opening.describes, objectives: Array.isArray(opening.objectives) ? opening.objectives : [], uncertainty: opening.uncertainty, explores: opening.explores },
     source: { model: source.model ?? null, latencyMs: source.latencyMs ?? null, usage: source.usage ?? null },
   }
   return touch({ ...ctx, conversation: { turns: [turn] } })
@@ -213,6 +213,8 @@ export function withTurn(ctx, turn, source = {}) {
     ...(statement ? { statement: turn.statement } : {}),
     reading: turn.reading,
     understanding: turn.understanding,
+    // Why it asked, or why it stated: private, for the diagnostics line and the record.
+    rationale: typeof turn.rationale === 'string' ? turn.rationale : '',
     source: { model: source.model ?? null, latencyMs: source.latencyMs ?? null, usage: source.usage ?? null },
   }
   return touch({ ...ctx, conversation: { turns: [...turnsOf(ctx), entry] } })

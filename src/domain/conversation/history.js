@@ -8,6 +8,7 @@
 // instruction (the prompt contains it as data), and nothing in it can raise
 // the budget (the signed qualification carries the count).
 
+import { normalizeObjectives } from './schema.js'
 import { normalizeUnderstanding } from './turn.js'
 
 const COMPAS_KINDS = ['opening', 'followup', 'statement']
@@ -28,7 +29,7 @@ export function wireTurns(turns) {
     if (t.role === 'compas') {
       const w = { role: 'compas', kind: t.kind, reflection: t.reflection || '', question: t.question || '' }
       if (t.kind === 'statement') w.statement = t.statement || ''
-      if (t.kind === 'opening' && t.analysis) w.analysis = { describes: t.analysis.describes, uncertainty: t.analysis.uncertainty, explores: t.analysis.explores }
+      if (t.kind === 'opening' && t.analysis) w.analysis = { describes: t.analysis.describes, objectives: normalizeObjectives(t.analysis.objectives) || [], uncertainty: t.analysis.uncertainty, explores: t.analysis.explores }
       out.push(w)
     } else if (t.role === 'visitor' && t.kind === 'reply') {
       out.push({ role: 'visitor', kind: 'reply', text: t.text })
@@ -87,7 +88,10 @@ export function validateHistory(rawTurns, rawUnderstanding, { replyMaxChars, max
       if (t.kind === 'statement') turn.statement = t.statement
       if (t.kind === 'opening' && t.analysis && typeof t.analysis === 'object') {
         const a = t.analysis
-        if (str(a.describes, 40) && str(a.uncertainty, FIELD_CHARS.uncertainty) && str(a.explores, 40)) turn.analysis = { describes: a.describes, uncertainty: a.uncertainty, explores: a.explores }
+        if (str(a.describes, 40) && str(a.uncertainty, FIELD_CHARS.uncertainty) && str(a.explores, 40)) {
+          // The objectives the opening recorded travel too (a browser from before they existed sends none).
+          turn.analysis = { describes: a.describes, objectives: normalizeObjectives(a.objectives) || [], uncertainty: a.uncertainty, explores: a.explores }
+        }
       }
       turns.push(turn)
     } else {

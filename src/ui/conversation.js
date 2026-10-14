@@ -89,12 +89,14 @@ function answerRoom(box) {
   box.style.maxHeight = `${Math.max(60, available - others - 2)}px`
 }
 
-/** The agent's private notes for the diagnostics line: what it read, what it took the purpose to be, how much is established. */
+/** The agent's private notes for the diagnostics line: what it read, the scope it holds, why it asked, how much is established. */
 function understandingLine(turn) {
   const u = turn.understanding
   if (!u) return ''
   const cov = Object.entries(u.coverage || {}).map(([k, v]) => `${k[0]}:${v === 'clear' ? '●' : v === 'partial' ? '◐' : '○'}`).join(' ')
-  return ` · read ${turn.reading || '—'} · ${u.confirmed.length} confirmed, ${u.inferred.length} inferred, ${u.open.length} open · ${cov}${u.purpose ? ` · purpose: ${u.purpose}` : ''}`
+  const n = k => (Array.isArray(u[k]) ? u[k].length : 0)
+  const objectives = n('objectives') ? ` · objectives: ${u.objectives.join(' | ')}` : ''
+  return ` · read ${turn.reading || '—'} · ${n('objectives')} objectives, ${n('evidence')} evidence, ${n('inferred')} inferred, ${n('open')} open · ${cov}${objectives}${u.purpose ? ` · purpose: ${u.purpose}` : ''}${turn.rationale ? ` · why: ${turn.rationale}` : ''}`
 }
 
 /**
@@ -152,8 +154,9 @@ export function conversationView(state, actions, kit) {
       said.append(h('div', { class: 'conv-node conv-ai conv-stated' }, speaker, statement, confirmQuestion))
     } else {
       // Once answered, the reading and the question are context, not the page: smaller, so the answer has the room.
-      const reflection = pagedText({ paragraphs: [turn.reflection], fit: answered ? '13,15' : '14,19', className: 'reflection', maxHeight: 'var(--r-max)', focusKey: 'conv-reflection-pager' })
-      reflection.classList.add('conv-reading')
+      // A follow-up may carry no reflection at all: a question that stands on its own is better than a paraphrase.
+      const reflection = turn.reflection ? pagedText({ paragraphs: [turn.reflection], fit: answered ? '13,15' : '14,19', className: 'reflection', maxHeight: 'var(--r-max)', focusKey: 'conv-reflection-pager' }) : null
+      if (reflection) reflection.classList.add('conv-reading')
       const question = pagedText({ paragraphs: [turn.question], fit: answered ? '14,24' : '16,44', className: 'question', maxHeight: answered ? 'var(--r-max)' : 'var(--q-max)', focusKey: 'conv-question-pager' })
       const q = question.querySelector('.question')
       q.id = 'q'

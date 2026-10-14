@@ -42,6 +42,8 @@ export function buildHandoffPayload(ctx, extras = {}) {
       title: ctx.statement?.title || null,
       statement: ctx.statement?.text || null,
       statementVersion: ctx.statement?.version || 0,
+      // The whole scope as the conversation left it: every objective the visitor named and did not drop, so nothing the statement compresses is lost on the way.
+      objectives: latestUnderstanding(ctx)?.objectives || null,
       parts: extras.parts
         ? {
             who: extras.parts.who,

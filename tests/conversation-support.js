@@ -7,6 +7,7 @@
 
 export const GOOD = Object.freeze({
   describes: 'problem',
+  objectives: ['Orders that arrive over WhatsApp are not lost'],
   uncertainty: 'What a working system would change for the staff who retype the orders.',
   explores: 'outcome',
   reflection: 'Orders arrive over WhatsApp and get retyped into a notebook, so they are easy to lose.',
@@ -28,16 +29,21 @@ export function messageBody(opening = GOOD, { stopReason = 'end_turn', model = '
   }
 }
 
-/** What the agent returns for a follow-up: how it read the answer, what it now understands, and one more question. */
+/** What the agent returns for a follow-up: how it read the answer, what it now understands about the whole project, why it asks, and one more question. */
 export const GOOD_TURN = Object.freeze({
   reading: 'answers',
   understanding: {
-    purpose: 'Orders that arrive over WhatsApp reach the notebook without anyone retyping them.',
-    confirmed: ['Orders arrive over WhatsApp', 'Someone retypes them into a notebook', 'Orders get lost'],
+    purpose: 'Orders that arrive over WhatsApp reach the kitchen without anyone retyping them.',
+    objectives: ['Orders that arrive over WhatsApp are not lost on the way to the kitchen'],
+    dropped: [],
+    beneficiaries: ['Marta, who retypes the orders', 'The kitchen'],
+    outcomes: ['No order is lost'],
+    evidence: ['Marta retypes the orders into a notebook every evening: how orders are lost'],
     inferred: ['The person who retypes them is the one who loses time'],
-    open: ['Who retypes the orders', 'What a lost order costs'],
+    open: ['What a lost order costs'],
     coverage: { problem: 'clear', beneficiaries: 'partial', outcome: 'partial', value: 'unknown', success: 'unknown' },
   },
+  rationale: 'The problem and who does the retyping are clear; what a lost order costs would change why the project matters.',
   move: 'ask',
   reflection: 'Lost orders come from the retyping, and Marta is the one who does it every evening.',
   question: 'What happened the last time an order was lost?',
@@ -55,7 +61,7 @@ export const GOOD_STATEMENT = Object.freeze({
 
 /** The history a browser sends for the first follow-up: the opening, then the visitor's answer. */
 export const HISTORY = Object.freeze([
-  { role: 'compas', kind: 'opening', reflection: GOOD.reflection, question: GOOD.question, analysis: { describes: GOOD.describes, uncertainty: GOOD.uncertainty, explores: GOOD.explores } },
+  { role: 'compas', kind: 'opening', reflection: GOOD.reflection, question: GOOD.question, analysis: { describes: GOOD.describes, objectives: GOOD.objectives, uncertainty: GOOD.uncertainty, explores: GOOD.explores } },
   { role: 'visitor', kind: 'reply', text: 'Marta retypes them every evening, and some get lost.' },
 ])
 

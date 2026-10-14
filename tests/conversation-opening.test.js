@@ -89,6 +89,9 @@ test('the instructions carry the persona, the method and the guard rails', () =>
     'Do not propose features',
     'explores',
     'Never ask for something they have already told you',
+    'objectives',
+    'is not an objective',
+    'The question serves the whole project',
   ]) assert.ok(SYSTEM_PROMPT.toLowerCase().includes(must.toLowerCase()), must)
   for (const branch of ['solution', 'problem', 'opportunity', 'objective is already clear']) assert.match(SYSTEM_PROMPT, new RegExp(branch, 'i'))
   // The methods shape how it listens; none is named, and no pseudo-scientific claim is made.
@@ -265,7 +268,7 @@ test('a reply that fails the checks is asked for once more, told why; nothing el
   assert.equal(err.reason, 'two_questions')
   assert.equal(stuck.calls.length, 2)
   // Each kind of validation failure is retried; an empty reflection and non-JSON are among them.
-  for (const body of [{ ...GOOD_TURN, reflection: '' }, 'Sure, here you go.', { ...GOOD_TURN, understanding: { purpose: 'x' } }]) {
+  for (const body of [{ ...GOOD_TURN, reflection: 'Too short' }, 'Sure, here you go.', { ...GOOD_TURN, understanding: { purpose: 'x' } }]) {
     const s = scripted(res(200, messageBody(body)), res(200, messageBody(GOOD_TURN)))
     assert.equal((await runTurn(s.fetchImpl)).turn.question, GOOD_TURN.question)
     assert.equal(s.calls.length, 2)

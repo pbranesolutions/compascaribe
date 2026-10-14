@@ -93,7 +93,7 @@ test('PROCEED with the server’s qualification opens the conversation: one mode
   const o = latestOpening(j.state.ctx)
   assert.equal(o.reflection, GOOD.reflection)
   assert.equal(o.question, GOOD.question)
-  assert.deepEqual(o.analysis, { describes: GOOD.describes, uncertainty: GOOD.uncertainty, explores: GOOD.explores })
+  assert.deepEqual(o.analysis, { describes: GOOD.describes, objectives: GOOD.objectives, uncertainty: GOOD.uncertainty, explores: GOOD.explores })
   assert.equal(o.source.model, 'claude-sonnet-5-5')
   // The visitor's description is still the submission, never replaced by anything generated.
   assert.equal(j.state.ctx.submission.text, words.trim())
@@ -524,6 +524,8 @@ test('when the purpose is stated it can be confirmed: it becomes the project sta
   assert.equal(j.state.payload.discovery.conversation.turns[0].role, 'compas')
   assert.equal(j.state.payload.discovery.originalInput, WA)
   assert.deepEqual(j.state.payload.discovery.conversation.understanding.coverage, GOOD_TURN.understanding.coverage)
+  assert.deepEqual(j.state.payload.project.objectives, GOOD_TURN.understanding.objectives, 'the whole scope goes with the handoff, not only the statement')
+  assert.equal(latestCompas(j.state.ctx).rationale, GOOD_TURN.rationale)
 
   // A reload at each of those places keeps the confirmed purpose.
   const reopened = (stage) => {
@@ -631,4 +633,29 @@ test('changed words start a new conversation: the old answers and statement are 
   assert.equal(turnsOf(j.state.ctx).length, 1)
   assert.equal(isConfirmed(j.state.ctx), false)
   assert.equal(j.state.stage, 'conversation')
+})
+
+test('an understanding saved in an earlier shape is not sent back: the agent rebuilds it from the conversation', async () => {
+  const storage = memoryStorage()
+  const conversation = stubConversation(opened())
+  conversation.replies.push(turned(), failed('network'))
+  const j = make({ storage, conversation })
+  await begin(j)
+  await answer(j)
+  await answer(j, 'Three last Friday.')
+  assert.equal(j.state.turn.status, 'failed')
+  // What an older browser session would hold: the flat list the agent kept before the project understanding was structured.
+  const saved = JSON.parse(storage.getItem(STORAGE_KEY))
+  const followup = saved.ctx.conversation.turns.find(t => t.kind === 'followup')
+  followup.understanding = { purpose: 'Orders reach the kitchen.', confirmed: ['Orders arrive over WhatsApp'], inferred: [], open: [], coverage: GOOD_TURN.understanding.coverage }
+  storage.setItem(STORAGE_KEY, JSON.stringify(saved))
+
+  const conversation2 = stubConversation()
+  const j2 = createJourney({ storage, provider: createProvider({ latency: false }), gate: stubGate(proceed()), conversation: conversation2, latency: false, history: null })
+  assert.equal(j2.restore(), true)
+  await j2.actions.retryConversation()
+  assert.equal(conversation2.nextCalls.length, 1)
+  assert.equal(conversation2.nextCalls[0].understanding, null, 'nothing the server would refuse is sent')
+  assert.equal(conversation2.nextCalls[0].turns.length, 4, 'the conversation itself still goes, whole')
+  assert.deepEqual(latestCompas(j2.state.ctx).understanding.objectives, GOOD_TURN.understanding.objectives)
 })

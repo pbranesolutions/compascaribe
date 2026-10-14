@@ -375,6 +375,7 @@ const whole = (shown, full) => shown === full || Boolean(shown && full.startsWit
 
 const SHORT_OPENING = {
   describes: 'problem',
+  objectives: ['Orders that arrive over WhatsApp are not lost'],
   uncertainty: 'What it would change for the people who retype the orders.',
   explores: 'outcome',
   reflection: 'Orders arrive over WhatsApp and get retyped by hand into a notebook, so some are lost on the way.',
@@ -383,6 +384,7 @@ const SHORT_OPENING = {
 // The longest reply the server will accept: nothing may be cut, and nothing may scroll.
 const LONG_OPENING = {
   describes: 'problem',
+  objectives: ['Patients are not double booked', 'Everyone can see who is coming tomorrow'],
   uncertainty: 'What the clinic would notice first if double booking stopped.',
   explores: 'outcome',
   reflection: 'You run a clinic with three doctors where the front desk books by phone into a paper agenda, so patients get double booked and nobody can see tomorrow’s list. A shared spreadsheet did not hold because the receptionists forget to update it, and the cost shows up as empty slots.',
@@ -390,6 +392,7 @@ const LONG_OPENING = {
 }
 const SPANISH_OPENING = {
   describes: 'solution',
+  objectives: ['Los clientes reservan sin llamar al local'],
   uncertainty: 'Qué cambiaría para el equipo.',
   explores: 'outcome',
   reflection: 'Quieres que tus clientes reserven sin llamar al local, para que el teléfono deje de ser el único camino.',
@@ -401,8 +404,8 @@ for (const o of [SHORT_OPENING, LONG_OPENING, SPANISH_OPENING]) {
 }
 
 const renewed = n => ({ token: `e2e-renewed-${n}`, expiresAt: Date.now() + 3600000 })
-const convOk = opening => ({ schema: 'compascaribe.conversation/1', status: 'ok', opening, qualification: renewed(1), progress: { replies: 1, limit: 10 }, model: 'claude-sonnet-5-5', usage: { inputTokens: 640, outputTokens: 150 }, latencyMs: 2140 })
-const convFail = kind => ({ schema: 'compascaribe.conversation/1', status: 'unavailable', failure: { kind } })
+const convOk = opening => ({ schema: 'compascaribe.conversation/2', status: 'ok', opening, qualification: renewed(1), progress: { replies: 1, limit: 10 }, model: 'claude-sonnet-5-5', usage: { inputTokens: 640, outputTokens: 150 }, latencyMs: 2140 })
+const convFail = kind => ({ schema: 'compascaribe.conversation/2', status: 'unavailable', failure: { kind } })
 const proceedWithQualification = () => ({ ...GATE_CASES[0].body, qualification: { token: 'e2e-qualification', expiresAt: Date.now() + 3600000 } })
 const setConv = (page, stub) => evaluate(page, `(window.__conv.stub = ${JSON.stringify(stub)}, window.__conv.turns = [], window.__conv.calls = 0, window.__conv.turnCalls = 0, true)`)
 /** The answers to the visitor's later replies, in order (the last repeats). */
@@ -413,13 +416,17 @@ const counts = page => evaluate(page, 'JSON.stringify({ gate: window.__gate.call
 // that could never have been shown cannot hide a layout problem.
 const understanding = {
   purpose: 'Orders reach the kitchen without being retyped.',
-  confirmed: ['Orders arrive over WhatsApp', 'They are retyped into a notebook'],
+  objectives: ['Orders that arrive over WhatsApp are not lost on the way to the kitchen'],
+  dropped: [],
+  beneficiaries: ['Marta, who retypes the orders'],
+  outcomes: ['No order is lost'],
+  evidence: ['Orders arrive over WhatsApp and are retyped into a notebook: how they get lost'],
   inferred: ['Retyping is where they get lost'],
   open: ['What a lost order costs'],
   coverage: { problem: 'clear', beneficiaries: 'partial', outcome: 'partial', value: 'unknown', success: 'unknown' },
 }
 const TURN_ASK = {
-  reading: 'answers', understanding, move: 'ask', statement: '',
+  reading: 'answers', understanding, rationale: 'What a lost order costs would change why the project matters.', move: 'ask', statement: '',
   reflection: 'Marta retypes the orders every evening, and some get lost on the way into the notebook.',
   question: 'What happened the last time an order was lost?',
 }
@@ -438,17 +445,19 @@ const TURN_STATEMENT = {
   statement: 'Orders that arrive over WhatsApp should reach the kitchen without Marta retyping them each evening, so that none are lost and she is free to prepare the next day.',
   question: 'Does this capture what the project is for, or is there something you would change?',
 }
-// The longest statement the server accepts (75 words), with a long confirming question.
+// A follow-up with no reflection: the question stands on its own.
+const TURN_BARE = { ...TURN_ASK, reflection: '', question: 'How does someone reserve the tennis court today?' }
+// The longest statement the server accepts (85 words), with a long confirming question.
 const TURN_STATEMENT_LONG = {
   ...TURN_STATEMENT,
-  statement: 'This is for the three doctors and the two part-time receptionists of the clinic: every appointment is visible to everyone in a way the receptionists find very easy, so that the doctors start each morning knowing exactly who is coming, with no double bookings and no confusion at the front desk. Patients are also reminded, so that fewer of the roughly ten weekly slots stay empty.',
+  statement: 'This is for the three doctors and the two part-time receptionists of the clinic: every appointment is visible to everyone in a way the receptionists find very easy, so that the doctors start each morning knowing exactly who is coming, with no double bookings and no confusion at the front desk. Patients are also reminded of their appointments, so that fewer of the roughly ten weekly slots stay empty, and the receptionists stop complaining about the agenda.',
   question: 'Does this say what the project is for, or is there something you would change or add before we go on?',
 }
-for (const [name, t] of Object.entries({ TURN_ASK, TURN_LONG, TURN_SPANISH, TURN_STATEMENT, TURN_STATEMENT_LONG })) {
+for (const [name, t] of Object.entries({ TURN_ASK, TURN_BARE, TURN_LONG, TURN_SPANISH, TURN_STATEMENT, TURN_STATEMENT_LONG })) {
   const v = validateTurn(t)
   if (!v.ok) throw new Error(`fixture ${name} is not a valid turn: ${v.reason}`)
 }
-const turnOk = (turn, n = 2) => ({ schema: 'compascaribe.conversation/1', status: 'ok', turn, qualification: renewed(n), progress: { replies: n, limit: 10 }, model: 'claude-sonnet-5-5', usage: { inputTokens: 900, outputTokens: 420 }, latencyMs: 4200 })
+const turnOk = (turn, n = 2) => ({ schema: 'compascaribe.conversation/2', status: 'ok', turn, qualification: renewed(n), progress: { replies: n, limit: 10 }, model: 'claude-sonnet-5-5', usage: { inputTokens: 900, outputTokens: 420 }, latencyMs: 4200 })
 const ok200 = body => ({ status: 200, body })
 const READY = 'window.__cc.state.stage === "conversation" && window.__cc.state.opening.status === "ready" && !window.__cc.state.busy'
 

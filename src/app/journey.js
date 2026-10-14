@@ -23,6 +23,7 @@ import {
 } from '../domain/context.js'
 import { createConversationClient } from '../domain/conversation/client.js'
 import { wireTurns } from '../domain/conversation/history.js'
+import { normalizeUnderstanding } from '../domain/conversation/turn.js'
 import { createProvider } from '../domain/discovery/provider.js'
 import { createGateClient } from '../domain/gate/client.js'
 import { buildHandoffPayload } from '../domain/handoff/payload.js'
@@ -347,7 +348,8 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
         text: ctx.submission.text,
         qualification: q.token,
         turns: wireTurns(turnsOf(ctx)),
-        understanding: latestUnderstanding(ctx),
+        // An understanding saved in an earlier shape is not sent: the server would refuse it, and the agent rebuilds it from the conversation.
+        understanding: normalizeUnderstanding(latestUnderstanding(ctx)),
       })
     } catch {
       // The client does not throw; if a stand-in or a bug does, the answer is still kept and trying again is still there.

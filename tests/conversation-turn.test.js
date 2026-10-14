@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { repeatsItself, validateHistory, wireTurns } from '../src/domain/conversation/history.js'
 import { TURN_SYSTEM_PROMPT, turnMessage } from '../src/domain/conversation/prompt.js'
-import { COVERAGE_KEYS, normalizeUnderstanding, sameQuestion, TURN_LIMITS, TURN_SCHEMA, validateTurn } from '../src/domain/conversation/turn.js'
+import { COVERAGE_KEYS, normalizeUnderstanding, sameQuestion, TURN_LIMITS, TURN_SCHEMA, UNDERSTANDING_LISTS, validateTurn } from '../src/domain/conversation/turn.js'
 import { GOOD, GOOD_STATEMENT, GOOD_TURN, HISTORY } from './conversation-support.js'
 
 const check = (patch, opts) => validateTurn({ ...GOOD_TURN, ...patch }, opts)
@@ -19,7 +19,8 @@ test('a well-formed follow-up passes and is returned tidied', () => {
   assert.equal(r.turn.question, GOOD_TURN.question)
   assert.equal(r.turn.move, 'ask')
   assert.equal(r.turn.statement, '')
-  assert.deepEqual(Object.keys(r.turn), ['reading', 'understanding', 'move', 'reflection', 'question', 'statement'])
+  assert.deepEqual(Object.keys(r.turn), ['reading', 'understanding', 'rationale', 'move', 'reflection', 'question', 'statement'])
+  assert.equal(r.turn.rationale, GOOD_TURN.rationale)
 })
 
 test('a follow-up needs both parts, one question, and the same standard of tone as the opening', () => {
@@ -27,7 +28,7 @@ test('a follow-up needs both parts, one question, and the same standard of tone 
   assert.equal(validateTurn([]).reason, 'shape')
   assert.equal(reason({ reading: 'curious' }), 'reading')
   assert.equal(reason({ move: 'close' }), 'move')
-  assert.equal(reason({ reflection: '' }), 'reflection_missing')
+  assert.equal(reason({ reflection: 'Too short' }), 'reflection_missing')
   assert.equal(reason({ question: '' }), 'question_missing')
   assert.equal(reason({ question: 'Who retypes them? And how often?' }), 'two_questions')
   assert.equal(reason({ question: 'What would change for the kitchen' }), 'question_form')
@@ -59,7 +60,8 @@ test('reflections stay short enough for the screen, and so does the statement', 
   const long = Array.from({ length: 60 }, (_, i) => `word${i}`).join(' ')
   assert.equal(reason({ reflection: long }), 'too_long')
   assert.equal(reason({ question: `${Array.from({ length: 45 }, () => 'really').join(' ')}?` }), 'too_long')
-  assert.equal(statedReason({ statement: Array.from({ length: 80 }, () => 'word').join(' ') }), 'statement_long')
+  assert.equal(statedReason({ statement: Array.from({ length: 90 }, () => 'word').join(' ') }), 'statement_long')
+  assert.equal(statedReason({ statement: Array.from({ length: 84 }, () => 'word').join(' ') }), 'ok', 'a statement that keeps several objectives has room')
   assert.equal(statedReason({ statement: 'One thing. Two things. Three things. Four things. Five sentences here. All short.' }), 'statement_long')
   assert.equal(statedReason({ statement: 'Too short.' }), 'statement_missing')
 })
@@ -105,25 +107,70 @@ test('a question is not asked twice after an answer, but may be asked again when
 // --- the understanding -----------------------------------------------------------------
 
 test('the understanding is bounded and tidied, and anything that is not one is refused', () => {
-  const u = { ...GOOD_TURN.understanding, confirmed: Array.from({ length: 20 }, (_, i) => `  fact   number ${i}  `), open: ['a question', 'A QUESTION', ''] }
+  const u = { ...GOOD_TURN.understanding, evidence: Array.from({ length: 20 }, (_, i) => `  fact   number ${i}  `), open: ['a question', 'A QUESTION', ''] }
   const n = normalizeUnderstanding(u)
-  assert.equal(n.confirmed.length, TURN_LIMITS.confirmedMax)
-  assert.equal(n.confirmed[0], 'fact number 0')
+  assert.equal(n.evidence.length, UNDERSTANDING_LISTS.evidence)
+  assert.equal(n.evidence[0], 'fact number 0')
   assert.deepEqual(n.open, ['a question'], 'duplicates and empties are dropped')
+  assert.deepEqual(Object.keys(n), ['purpose', 'objectives', 'dropped', 'beneficiaries', 'outcomes', 'evidence', 'inferred', 'open', 'coverage'])
   assert.equal(normalizeUnderstanding({ ...u, purpose: 42 }), null)
-  assert.equal(normalizeUnderstanding({ ...u, confirmed: 'not a list' }), null)
+  assert.equal(normalizeUnderstanding({ ...u, evidence: 'not a list' }), null)
+  assert.equal(normalizeUnderstanding({ ...u, objectives: undefined }), null)
+  assert.equal(normalizeUnderstanding({ ...u, dropped: [null] }), null)
   assert.equal(normalizeUnderstanding({ ...u, coverage: { ...u.coverage, value: 'maybe' } }), null)
   assert.equal(normalizeUnderstanding(null), null)
+  // The shape the agent kept before the project understanding was structured: refused, so the agent rebuilds it from the conversation.
+  assert.equal(normalizeUnderstanding({ purpose: 'p', confirmed: ['a'], inferred: [], open: [], coverage: u.coverage }), null)
   assert.equal(check({ understanding: { ...GOOD_TURN.understanding, coverage: {} } }).reason, 'understanding')
   const long = normalizeUnderstanding({ ...u, purpose: 'x'.repeat(2000), inferred: ['y'.repeat(2000)] })
   assert.equal(long.purpose.length, TURN_LIMITS.purposeChars)
   assert.equal(long.inferred[0].length, TURN_LIMITS.itemChars)
+  for (const [name, max] of Object.entries(UNDERSTANDING_LISTS)) {
+    assert.equal(normalizeUnderstanding({ ...u, [name]: Array.from({ length: max + 5 }, (_, i) => `item ${i}`) })[name].length, max, name)
+  }
+})
+
+test('the understanding keeps the whole project apart from its parts: objectives, what was dropped, who, outcomes, evidence, inferences, open points', () => {
+  const r = check({
+    understanding: {
+      purpose: 'Residents of the building receive the communications that matter and can reserve the shared amenities.',
+      objectives: ['Residents receive important building communications', 'Residents reserve shared amenities such as the tennis court and common areas'],
+      dropped: [],
+      beneficiaries: ['Residents', 'The building manager'],
+      outcomes: ['Nobody misses an announcement', 'Reserving the tennis court does not need a phone call'],
+      evidence: ['A party announcement was missed last month: communications not reaching residents'],
+      inferred: ['The manager is the one who sends the announcements'],
+      open: ['How reservations are made today'],
+      coverage: { problem: 'clear', beneficiaries: 'clear', outcome: 'partial', value: 'partial', success: 'unknown' },
+    },
+    reflection: '',
+    question: 'How does someone reserve the tennis court today?',
+  })
+  assert.equal(r.ok, true)
+  assert.equal(r.turn.understanding.objectives.length, 2)
+  assert.equal(r.turn.reflection, '', 'a question that stands on its own needs no reflection')
+})
+
+test('the rationale is kept, bounded, and may be absent in a reply from before it existed', () => {
+  assert.equal(check({ rationale: `  why   ${'x'.repeat(1000)}` }).turn.rationale.length, TURN_LIMITS.rationaleChars)
+  const { rationale, ...without } = GOOD_TURN
+  const r = validateTurn(without)
+  assert.equal(r.ok, true)
+  assert.equal(r.turn.rationale, '')
+  assert.equal(reason({ rationale: 7 }), 'shape')
+})
+
+test('the purpose is never stated with no objective on record', () => {
+  assert.equal(statedReason({ understanding: { ...GOOD_STATEMENT.understanding, objectives: [] } }), 'scope_empty')
+  assert.equal(reason({ understanding: { ...GOOD_TURN.understanding, objectives: [] } }), 'ok', 'while still asking, the scope may not be known yet')
 })
 
 test('the structured-output schema asks for the move in the order it should be settled', () => {
-  assert.deepEqual(Object.keys(TURN_SCHEMA.properties), ['reading', 'understanding', 'move', 'reflection', 'question', 'statement'])
+  assert.deepEqual(Object.keys(TURN_SCHEMA.properties), ['reading', 'understanding', 'rationale', 'move', 'reflection', 'question', 'statement'])
   assert.deepEqual(TURN_SCHEMA.required, Object.keys(TURN_SCHEMA.properties))
   assert.equal(TURN_SCHEMA.additionalProperties, false)
+  assert.deepEqual(Object.keys(TURN_SCHEMA.properties.understanding.properties), ['purpose', ...Object.keys(UNDERSTANDING_LISTS), 'coverage'])
+  assert.deepEqual(TURN_SCHEMA.properties.understanding.required, ['purpose', ...Object.keys(UNDERSTANDING_LISTS), 'coverage'])
   assert.deepEqual(Object.keys(TURN_SCHEMA.properties.understanding.properties.coverage.properties), [...COVERAGE_KEYS])
   assert.equal(TURN_SCHEMA.properties.understanding.properties.coverage.additionalProperties, false)
 })
@@ -141,6 +188,11 @@ test('no history is a first reply; a well-formed one is returned normalised', ()
   assert.equal(r.compasTurns, 1)
   assert.equal(r.visitorTurns, 1)
   assert.deepEqual(r.turns[0].analysis, HISTORY[0].analysis)
+  assert.deepEqual(r.turns[0].analysis.objectives, GOOD.objectives, 'the objectives the opening found travel with the history')
+  // A browser from before the opening recorded objectives sends none; the history still stands.
+  const { objectives, ...older } = HISTORY[0].analysis
+  assert.deepEqual(hist([{ ...HISTORY[0], analysis: older }, HISTORY[1]], null).turns[0].analysis.objectives, [])
+  assert.deepEqual(hist([{ ...HISTORY[0], analysis: { ...older, objectives: 'nope' } }, HISTORY[1]], null).turns[0].analysis.objectives, [])
   assert.equal(r.turns[1].text, HISTORY[1].text)
   assert.deepEqual(r.understanding, normalizeUnderstanding(GOOD_TURN.understanding))
 })
@@ -169,7 +221,7 @@ test('a history that is not the conversation shape is refused', () => {
 
 test('a statement turn is carried with its statement, and the wire form drops what the server does not need', () => {
   const turns = [
-    { id: 't1', role: 'compas', kind: 'opening', at: 'x', reflection: 'R', question: 'Q?', analysis: { describes: 'problem', uncertainty: 'u', explores: 'outcome' }, source: { model: 'm' } },
+    { id: 't1', role: 'compas', kind: 'opening', at: 'x', reflection: 'R', question: 'Q?', analysis: { describes: 'problem', objectives: ['one', 'two'], uncertainty: 'u', explores: 'outcome' }, source: { model: 'm' } },
     { id: 't2', role: 'visitor', kind: 'reply', at: 'x', text: 'Answer', to: 't1' },
     { id: 't3', role: 'compas', kind: 'statement', at: 'x', reflection: '', question: 'Right?', statement: 'The purpose.', understanding: GOOD_TURN.understanding, reading: 'answers' },
     { id: 't4', role: 'visitor', kind: 'reply', at: 'x', text: 'Not quite', to: 't3' },
@@ -183,6 +235,7 @@ test('a statement turn is carried with its statement, and the wire form drops wh
   ])
   const r = hist(wire, null)
   assert.equal(r.ok, true)
+  assert.deepEqual(wire[0].analysis.objectives, ['one', 'two'])
   assert.equal(r.turns[2].statement, 'The purpose.')
   assert.equal(hist([...wire.slice(0, 3), { ...wire[3], text: '' }], null).error, 'empty_reply')
 })
@@ -226,10 +279,18 @@ test('the conversation is given to the model as data, in order, with the visitor
   assert.match(msg, /<visitor responding_to="statement">\nNot quite/)
   assert.match(msg, /<compas kind="statement">\nStatement: The purpose/)
   assert.match(msg, /note_from_the_opening/)
+  assert.match(msg, /"objectives_named_in_the_description":\[\]/, 'an opening without objectives seeds an empty list')
   assert.match(msg, /final: false/)
   assert.match(msg, /repeated: false/)
   assert.match(msg, /statement already proposed: yes/)
   assert.match(msg, /exchanges so far: 2/)
+})
+
+test('the objectives the opening found seed the first follow-up, and an opening that found none seeds an empty list', () => {
+  const msg = turnMessage({ text: 'Residents', turns: [...HISTORY], understanding: null, budget: { exchanges: 1, converge: false, final: false, statementProposed: false } })
+  assert.match(msg, /"objectives_named_in_the_description":\["Orders that arrive over WhatsApp are not lost"\]/)
+  const none = turnMessage({ text: 'x', turns: [{ ...HISTORY[0], analysis: { describes: 'unclear', uncertainty: 'u', explores: 'situation' } }, HISTORY[1]], understanding: null, budget: { exchanges: 1, converge: false, final: false, statementProposed: false } })
+  assert.match(none, /"objectives_named_in_the_description":\[\]/)
 })
 
 test('a working understanding replaces the opening note', () => {
@@ -258,6 +319,32 @@ test('the follow-up instructions carry the persona, the method, the budget rules
     'Do not predict results',
     'Coverage is a map, not a sequence',
     'ask it once more in fresh words',
+    // Holistic understanding: the whole project, not the last answer; objectives apart from examples; nothing leaves scope silently.
+    'rebuilt each turn from the whole conversation',
+    'investigating one never removes another',
+    'An incident, an example, a symptom or a proposed solution is not an objective',
+    'Only what they removed in words; never what they merely stopped mentioning',
+    'If what it adds is a new objective',
+    // Strategic, adaptive discovery: value of the next question, no questionnaire, leave an anecdote once understood.
+    'You do not run a questionnaire',
+    'what its answer would change in the statement',
+    'Is a question necessary at all',
+    'Never spend a second question on an incident whose objective is already clear',
+    'A question that serves the whole project beats one that deepens a part of it',
+    'Functional detail is never required',
+    // Contribution over paraphrase.
+    'It is not a paraphrase of their answer',
+    'leave it empty',
+    // The statement keeps the whole scope, keeps facts apart from assumptions, and survives a correction whole.
+    'It covers every objective in the understanding that is not dropped',
+    'recognise their entire project in it',
+    'nothing from inferred appears in it as a fact',
+    'confirming or correcting one part is not permission to drop another',
+    'keeps everything they did not correct',
+    'only their words remove it',
+    'an example illustrates, it does not clarify',
+    'Leaving out a fact of theirs because you could not link it is a silent narrowing of the project',
+    'It names who it is for in so many words',
   ]) assert.ok(TURN_SYSTEM_PROMPT.includes(must), must)
   for (const reading of ['answers', 'adds', 'changes', 'contradicts', 'unsure', 'asks', 'diversion', 'corrects']) assert.match(TURN_SYSTEM_PROMPT, new RegExp(`- ${reading}:`))
   // The methods shape how it listens; none is named, and no pseudo-scientific claim is made.
