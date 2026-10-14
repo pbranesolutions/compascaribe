@@ -18,7 +18,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { validateOpening } from '../../src/domain/conversation/schema.js'
-import { evaluate, key, launchChrome, navigate, screenshot, setViewport, sleep, waitFor } from './cdp.mjs'
+import { evaluate, key, launchChrome, navigate, screenshot, setViewport, sleep, typeText as cdpType, waitFor } from './cdp.mjs'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => (a.startsWith('--') ? [a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true] : [])).filter(x => x.length))
 const BASE = args.url || 'http://localhost:5173'
@@ -324,12 +324,14 @@ async function gateScenarios(page, vp) {
   await evaluate(page, '(window.__gate.stub = null, window.__gate.last = null, true)')
   await fillWelcome(page, 'We lose track of orders that come in over WhatsApp and someone has to retype them into a notebook')
   await click(page, '.btn-primary')
-  await waitFor(page, 'window.__cc.state.stage === "gate" && !window.__cc.state.busy && window.__cc.state.gate && window.__gate.last', { timeout: 25000 })
+  // With the model key configured a PROCEED continues into the conversation, so the stage is not necessarily the diagnostic.
+  await waitFor(page, '!window.__cc.state.busy && window.__cc.state.gate && window.__gate.last', { timeout: 60000 })
   const real = JSON.parse(await evaluate(page, 'JSON.stringify(window.__gate.last)'))
-  const dom = await gateDom()
+  const qualified = Boolean(real.body.qualification)
+  const dom = qualified ? null : await gateDom()
   const wantReal = real.body.signals ? [real.body.signals.intent, real.body.signals.irrelevance, real.body.signals.spam].map(n => n.toFixed(3)) : ['—', '—', '—']
-  await auditAndShoot(page, vp, 'gate-real')
-  const gateReal = JSON.stringify({ http: real.status, decision: real.body.decision, failure: real.body.failure && real.body.failure.kind, shown: dom.word })
+  if (!qualified) await auditAndShoot(page, vp, 'gate-real')
+  const gateReal = JSON.stringify({ http: real.status, decision: real.body.decision, failure: real.body.failure && real.body.failure.kind, shown: dom ? dom.word : 'conversation' })
   // PROCEED with a qualification continues to the real conversation route: what is displayed is what it returned
   // (a live reply when ANTHROPIC_API_KEY is configured). Without a qualification the server is not configured to
   // generate, and PROCEED stays at the diagnostic with no model request.
@@ -347,7 +349,13 @@ async function gateScenarios(page, vp) {
     const callsReal = await counts(page)
     verdict(vp, 'conv-real-unconfigured', (await state(page)).stage === 'gate' && callsReal.conv === 0, 'PROCEED without a qualification stays at the diagnostic; no model request')
   }
-  verdict(vp, 'gate-real-matches', dom.word === real.body.decision && JSON.stringify(dom.signals) === JSON.stringify(wantReal), gateReal)
+  if (qualified) {
+    // The decision the page holds is exactly what the backend returned.
+    const held = JSON.parse(await evaluate(page, 'JSON.stringify({ decision: window.__cc.state.gate && window.__cc.state.gate.decision })'))
+    verdict(vp, 'gate-real-matches', held.decision === real.body.decision, gateReal)
+  } else {
+    verdict(vp, 'gate-real-matches', dom.word === real.body.decision && JSON.stringify(dom.signals) === JSON.stringify(wantReal), gateReal)
+  }
 }
 
 // --- the first conversation ---------------------------------------------------------
@@ -358,6 +366,7 @@ const whole = (shown, full) => shown === full || Boolean(shown && full.startsWit
 const SHORT_OPENING = {
   describes: 'problem',
   uncertainty: 'What it would change for the people who retype the orders.',
+  explores: 'outcome',
   reflection: 'Orders arrive over WhatsApp and get retyped by hand into a notebook, so some are lost on the way.',
   question: 'When one does get lost, what is the part you most need to stop happening?',
 }
@@ -365,12 +374,14 @@ const SHORT_OPENING = {
 const LONG_OPENING = {
   describes: 'problem',
   uncertainty: 'What the clinic would notice first if double booking stopped.',
+  explores: 'outcome',
   reflection: 'You run a clinic with three doctors where the front desk books by phone into a paper agenda, so patients get double booked and nobody can see tomorrow’s list. A shared spreadsheet did not hold because the receptionists forget to update it, and the cost shows up as empty slots.',
   question: 'If the receptionists no longer had to remember to update anything and every patient arrived on the right day, what would be the first thing you would notice changing across the clinic, for the doctors and for the people waiting?',
 }
 const SPANISH_OPENING = {
   describes: 'solution',
   uncertainty: 'Qué cambiaría para el equipo.',
+  explores: 'outcome',
   reflection: 'Quieres que tus clientes reserven sin llamar al local, para que el teléfono deje de ser el único camino.',
   question: '¿Qué te gustaría que fuera distinto para tu equipo cuando los clientes reserven solos?',
 }
@@ -397,7 +408,7 @@ const convDom = page => evaluate(page, `JSON.stringify((() => {
   const send = [...document.querySelectorAll('.composer .btn-primary')][0]
   const sr = send ? send.getBoundingClientRect() : null
   return {
-    words: t('.conv-words .prose'),
+    words: t('.conv-quote'),
     reflection: t('.conv-said .reflection'),
     question: t('#q'),
     reflectionPager: !!document.querySelector('.conv-said .reflection ~ .paged-pager .pager, .conv-ai .paged-pager .pager'),
@@ -405,10 +416,16 @@ const convDom = page => evaluate(page, `JSON.stringify((() => {
     hasComposer: !!ta,
     max: ta ? ta.maxLength : null,
     sendVisible: !!sr && sr.top >= 0 && sr.bottom <= window.innerHeight && sr.right <= window.innerWidth && sr.height >= 36,
-    wordsHidden: getComputedStyle(document.querySelector('.conv-words') || document.body).display === 'none',
-    head: t('.ply-head'),
-    foot: [...document.querySelectorAll('.ply-foot button')].map(e => e.textContent.trim()),
-    footShown: !!document.querySelector('.ply-foot') && getComputedStyle(document.querySelector('.ply-foot')).display !== 'none',
+    wordsHidden: getComputedStyle(document.querySelector('.conv-quote') || document.body).display === 'none' || !document.querySelector('.conv-quote'),
+    retry: (() => { const b = document.querySelector('.conv-retry .btn-primary'); if (!b) return false; const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight && r.height >= 36 })(),
+    editVisible: (() => { const b = document.querySelector('[aria-label="Edit your words"]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight })(),
+    fullExchange: (() => { const b = document.querySelector('.conv-only-compact'); return !!b && getComputedStyle(b).display !== 'none' })(),
+    readInFull: (() => { const b = document.querySelector('.conv-read'); return !!b && getComputedStyle(b).display !== 'none' })(),
+    technical: /reply written by an ai model|you wrote|in full ›|first exchange|live · ai reply|reply in progress|reply not ready/i.test(document.querySelector('#app').textContent),
+    speaker: t('.conv-speaker'),
+    speakerVisible: (() => { const e = document.querySelector('.conv-speaker'); return !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0 })(),
+    readingHidden: (() => { const e = document.querySelector('.conv-reading'); return !e || getComputedStyle(e).display === 'none' })(),
+    diag: (() => { const e = document.querySelector('.conv-diag'); return e && getComputedStyle(e).display !== 'none' ? e.textContent : null })(),
     bar: t('.bar'),
     route: document.querySelectorAll('.route, .route-bar').length,
     error: t('.conv .error'),
@@ -423,8 +440,8 @@ const convDom = page => evaluate(page, `JSON.stringify((() => {
  * Begin with the gate answering PROCEED + a qualification and the conversation
  * route answering with `stub`. Resolves once the conversation stage is showing.
  */
-async function beginConversation(page, text, stub, { wait = READY, delayMs = 0 } = {}) {
-  await navigate(page, `${BASE}/?fast&fresh`)
+async function beginConversation(page, text, stub, { wait = READY, delayMs = 0, query = '' } = {}) {
+  await navigate(page, `${BASE}/?fast&fresh${query}`)
   await waitFor(page, 'window.__cc && window.__cc.state.stage === "welcome"')
   await setGate(page, { status: 200, body: proceedWithQualification() })
   await setConv(page, { ...stub, delayMs })
@@ -450,10 +467,16 @@ async function conversationScenarios(page, vp) {
   verdict(vp, 'conv-one-question', (d.question.match(/\?/g) || []).length === 1 && !d.reflection.includes('?'), d.question)
   verdict(vp, 'conv-field-ready', d.hasComposer && d.max === 480 && d.sendVisible, JSON.stringify({ composer: d.hasComposer, max: d.max, send: d.sendVisible }))
   verdict(vp, 'conv-requests', c.gate === 1 && c.conv === 1 && c.last.text === TEXT && c.last.qualification === 'e2e-qualification', JSON.stringify(c))
-  verdict(vp, 'conv-not-simulated', /Live · AI reply/.test(d.bar) && !/simulated/i.test(d.bar + d.head) && d.route === 0, JSON.stringify({ bar: d.bar, route: d.route }))
+  // Customer-facing: no engineering labels; the AI is named once, quietly; the project and its edit are one control away.
+  verdict(vp, 'conv-customer-facing', !d.technical && !/live|simulated|prototype/i.test(d.bar) && d.route === 0 && d.diag === null && d.editVisible, JSON.stringify({ technical: d.technical, bar: d.bar, route: d.route, diag: d.diag, edit: d.editVisible }))
+  if (!tiny) verdict(vp, 'conv-ai-transparency', /Compás Caribe/.test(d.speaker || '') && /AI-assisted/.test(d.speaker || '') && d.speakerVisible, JSON.stringify({ speaker: d.speaker }))
   // On roomy screens the words and the reading are on screen together.
   if (!short) verdict(vp, 'conv-together', !d.wordsHidden && d.q && d.q.top > 0, JSON.stringify({ wordsHidden: d.wordsHidden }))
-  if (tiny && vp.width < 560) verdict(vp, 'conv-tiny-compact', d.wordsHidden && !d.footShown && /Full exchange/.test(d.head) && /Edit your words/.test(d.head), JSON.stringify({ hidden: d.wordsHidden, foot: d.footShown, head: d.head }))
+  if (tiny && vp.width < 560) verdict(vp, 'conv-tiny-compact', d.fullExchange && d.editVisible && d.readingHidden && d.sendVisible, JSON.stringify({ full: d.fullExchange, edit: d.editVisible, readingHidden: d.readingHidden, send: d.sendVisible }))
+
+  // Accessible: every control is named, the question is the page's heading, the answer field has a label.
+  const names = JSON.parse(await evaluate(page, 'JSON.stringify({ unnamed: [...document.querySelectorAll("#app button, #app textarea, #app a")].filter(e => !((e.getAttribute("aria-label") || e.textContent || "").trim())).length, heading: (document.querySelector("#q") || {}).getAttribute && document.querySelector("#q").getAttribute("role") === "heading", field: document.querySelector("#reply") && document.querySelector("#reply").getAttribute("aria-label"), live: document.querySelector("#live") && document.querySelector("#live").textContent })'))
+  verdict(vp, 'conv-accessible', names.unnamed === 0 && names.heading && /answer/i.test(names.field || '') && /Compás Caribe:/.test(names.live || ''), JSON.stringify(names))
 
   // 2. Answer: a long answer grows the field then pages; Send records it; nothing leaves the browser.
   await fillReply(page, LONG)
@@ -471,7 +494,7 @@ async function conversationScenarios(page, vp) {
   const answerPager = await evaluate(page, '!!document.querySelector(".conv-answer .pager")')
   verdict(vp, 'conv-answered', turns === 2 && !d.hasComposer && /not connected yet/.test(d.notice || '') && (d.answer === LONG || (answerPager && LONG.startsWith(d.answer))), JSON.stringify({ turns, notice: d.notice, answer: (d.answer || '').slice(0, 40), answerPager }))
   verdict(vp, 'conv-answer-stays-local', c.gate === before.gate && c.conv === before.conv, JSON.stringify({ before, after: c }))
-  await clickText(page, 'Edit your answer')
+  await click(page, '[aria-label="Edit your answer"]')
   await sleep(100)
   d = await convDom(page)
   const refilled = await evaluate(page, 'document.querySelector("#reply") && document.querySelector("#reply").value')
@@ -479,6 +502,20 @@ async function conversationScenarios(page, vp) {
   verdict(vp, 'conv-answer-editable', refilled === LONG && d.hasComposer, JSON.stringify({ len: refilled && refilled.length }))
   await evaluate(page, 'window.__cc.actions.sendReply(); true')
   await sleep(80)
+
+  // 2b. The keyboard alone is enough: type, Ctrl+Enter sends.
+  await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) })
+  await evaluate(page, 'document.querySelector("#reply").focus(); true')
+  await cdpType(page, 'Mostly that nobody retypes anything.')
+  await key(page, 'Enter', { modifiers: 2 })
+  await sleep(150)
+  const sentByKeyboard = await evaluate(page, 'window.__cc.state.ctx.conversation.turns.length === 2 && !document.querySelector("#reply")')
+  verdict(vp, 'conv-keyboard-send', sentByKeyboard, 'Ctrl+Enter from the field records the answer')
+  await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) })
+  await fillReply(page, LONG)
+  await sleep(80)
+  await evaluate(page, 'window.__cc.actions.sendReply(); true')
+  await sleep(100)
 
   // 3. The exchange in full, page by page.
   await evaluate(page, 'window.__cc.actions.openOverlay("exchange", 0); true')
@@ -510,6 +547,12 @@ async function conversationScenarios(page, vp) {
   await sleep(100)
   await shotAudit('long-answered')
 
+  // 4b. Engineering detail stays out of the customer's way and is one flag away.
+  await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) }, { query: '&diagnostics' })
+  d = await convDom(page)
+  await shotAudit('diagnostics')
+  verdict(vp, 'conv-diagnostics', /claude-sonnet-5-5/.test(d.diag || '') && /explores outcome/.test(d.diag || ''), JSON.stringify({ diag: d.diag }))
+
   // 5. Another language is displayed as written.
   await beginConversation(page, 'Quiero que mis clientes reserven sin llamar al local', { status: 200, body: convOk(SPANISH_OPENING) })
   d = await convDom(page)
@@ -523,7 +566,7 @@ async function conversationScenarios(page, vp) {
   await shotAudit('generating')
   verdict(vp, 'conv-generating', d.steps.join('|') === 'Preparing a reply' && !d.reflection && !d.question && d.words === TEXT && !/understand|analy|read/i.test(d.steps.join(' ')), JSON.stringify({ steps: d.steps, words: (d.words || '').slice(0, 30) }))
   // Leaving cancels: the late reply is not shown and the words are kept.
-  await clickText(page, 'Edit your words')
+  await click(page, '[aria-label="Edit your words"]')
   await settle(page, 's.stage === "welcome"')
   await sleep(1700)
   const kept = await evaluate(page, 'document.querySelector("#describe").value')
@@ -581,7 +624,7 @@ async function conversationScenarios(page, vp) {
     await beginConversation(page, LONG, { status: 503, body: convFail(kind) }, { wait: 'window.__cc.state.stage === "conversation" && window.__cc.state.opening.status === "failed" && !window.__cc.state.busy' })
     d = await convDom(page)
     await shotAudit(`failed-${kind}`)
-    verdict(vp, `conv-failed-${kind}`, /Your words are kept/.test(d.error || '') && d.words === LONG && d.footShown && d.foot.includes('Try again'), JSON.stringify({ error: d.error, foot: d.foot }))
+    verdict(vp, `conv-failed-${kind}`, /Your words are kept/.test(d.error || '') && d.words === LONG && d.retry && d.editVisible && !d.technical, JSON.stringify({ error: d.error, retry: d.retry, edit: d.editVisible }))
   }
   await setConv(page, { status: 200, body: convOk(SHORT_OPENING) })
   await clickText(page, 'Try again')

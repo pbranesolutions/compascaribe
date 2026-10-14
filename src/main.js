@@ -8,6 +8,8 @@ import { createRenderer } from './ui/render.js'
 
 const params = new URLSearchParams(location.search)
 const audit = params.has('audit')
+// ?diagnostics shows the engineering detail the customer-facing screens leave out (model, latency, tokens).
+if (audit || params.has('diagnostics')) document.documentElement.dataset.diagnostics = 'true'
 const fast = params.has('fast') // skips simulated latency, for automated tests
 
 if (params.has('fresh')) {

@@ -429,7 +429,7 @@ export function overlay(state, actions) {
     const opening = latestOpening(state.ctx)
     const answer = latestReply(state.ctx)
     const rows = [
-      ['You wrote', state.ctx.submission?.text || ''],
+      ['Your project', state.ctx.submission?.text || ''],
       ...(opening ? [['Compás Caribe · what it took from this', opening.reflection], ['Compás Caribe · its question', opening.question]] : []),
       ...(answer ? [['Your answer', answer.text]] : []),
     ]

@@ -104,7 +104,8 @@ export function createRenderer({ root, live, journey, audit = false }) {
     bar.inert = inert
     for (const el of stage.children) if (el !== ov) el.inert = inert
 
-    composers = [...root.querySelectorAll('.composer')].filter(c => typeof c.measure === 'function')
+    // Composers and any block that sizes itself to the room it is left (data-measure) are measured on every layout.
+    composers = [...root.querySelectorAll('.composer, [data-measure]')].filter(c => typeof c.measure === 'function')
     layout()
     focus(s, { stageChanged, prevFocusKey, prevCaret, returnKey })
     announce(s)
@@ -117,17 +118,26 @@ export function createRenderer({ root, live, journey, audit = false }) {
     root.querySelector('.overlay')?.paginate?.()
   }
 
+  /** A preview that is cut short says so: its "Read in full" control is shown only then. */
+  function markClamps() {
+    for (const el of root.querySelectorAll('[data-clamp-detect]')) {
+      el.parentElement.classList.toggle('is-clamped', el.scrollHeight > el.clientHeight + 1)
+    }
+  }
+
   function layout() {
     fitAll(root)
     for (const c of composers) c.measure()
     repaginate()
     budget()
+    markClamps()
     // A second pass after fonts/metrics settle.
     requestAnimationFrame(() => {
       fitAll(root)
       for (const c of composers) c.measure()
       repaginate()
       budget()
+      markClamps()
     })
   }
 

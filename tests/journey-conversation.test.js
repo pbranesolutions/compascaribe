@@ -82,7 +82,7 @@ test('PROCEED with the server’s qualification opens the conversation: one mode
   const o = latestOpening(j.state.ctx)
   assert.equal(o.reflection, GOOD.reflection)
   assert.equal(o.question, GOOD.question)
-  assert.deepEqual(o.analysis, { describes: GOOD.describes, uncertainty: GOOD.uncertainty })
+  assert.deepEqual(o.analysis, { describes: GOOD.describes, uncertainty: GOOD.uncertainty, explores: GOOD.explores })
   assert.equal(o.source.model, 'claude-sonnet-5-5')
   // The visitor's description is still the submission, never replaced by anything generated.
   assert.equal(j.state.ctx.submission.text, words.trim())

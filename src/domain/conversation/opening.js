@@ -52,7 +52,7 @@ function kindFor(err) {
  *   config: ReturnType<import('./config.js').resolveConversationConfig>,
  *   fetchImpl?: typeof fetch, now?: () => number,
  * }} input
- * @returns {Promise<{ opening: { describes: string, uncertainty: string, reflection: string, question: string }, model: string, usage: { inputTokens: number, outputTokens: number } | null, stopReason: string|null, latencyMs: number, requestId: string|null }>}
+ * @returns {Promise<{ opening: { describes: string, uncertainty: string, explores: string, reflection: string, question: string }, model: string, usage: { inputTokens: number, outputTokens: number } | null, stopReason: string|null, latencyMs: number, requestId: string|null }>}
  */
 export async function generateOpening({ text, apiKey, config, fetchImpl, now = Date.now }) {
   if (!apiKey) throw new OpeningError('configuration', { reason: 'no_key' })

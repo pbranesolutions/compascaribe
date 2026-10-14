@@ -85,8 +85,11 @@ test('the instructions carry the persona, the method and the guard rails', () =>
     'no praise',
     'language the visitor wrote in',
     'Never invent',
+    'Do not propose features',
+    'explores',
+    'Never ask for something they have already told you',
   ]) assert.ok(SYSTEM_PROMPT.toLowerCase().includes(must.toLowerCase()), must)
-  for (const branch of ['solution', 'problem', 'opportunity', 'clear objective']) assert.match(SYSTEM_PROMPT, new RegExp(branch, 'i'))
+  for (const branch of ['solution', 'problem', 'opportunity', 'objective is already clear']) assert.match(SYSTEM_PROMPT, new RegExp(branch, 'i'))
   // The methods shape how it listens; none is named, and no pseudo-scientific claim is made.
   for (const name of ['Bandler', 'Grinder', 'Carnegie', 'Cialdini', 'NLP', 'neuro']) assert.ok(!SYSTEM_PROMPT.includes(name), name)
 })
@@ -129,7 +132,7 @@ test('a refusal, a cut-off reply, non-JSON and an invalid opening are failures, 
     [res(200, messageBody('Sure! Here is a question.')), 'malformed'],
     [res(200, messageBody({ ...GOOD, question: 'Who uses it? And how often?' })), 'malformed'],
     [res(200, messageBody({ ...GOOD, reflection: '' })), 'malformed'],
-    [res(200, messageBody({ ...GOOD, reflection: 'Great idea! Orders arrive over WhatsApp.' })), 'malformed'],
+    [res(200, messageBody({ ...GOOD, reflection: 'Excellent! Orders arrive over WhatsApp.' })), 'malformed'],
     [res(200, { ...messageBody(GOOD), content: [] }), 'malformed'],
   ]
   for (const [response, kind] of cases) {

@@ -54,7 +54,9 @@ export function topBar(state, actions) {
     return h('span', { role: 'listitem', class: 'route-item' }, inner)
   })
 
-  const readout = readoutFor(state)
+  // Engineering labels (live model, stage readouts) are for ?diagnostics; the first conversation is customer-facing.
+  const dev = document.documentElement.dataset.diagnostics === 'true'
+  const readout = state.stage === 'conversation' && !dev ? null : readoutFor(state)
   const hasWork = Boolean(state.ctx.submission) && state.stage !== 'welcome'
   // Progress is shown once there is progress to show: not before the visitor has begun.
   // The gate is a diagnostic end point: there is no route beyond it to show.
@@ -64,12 +66,12 @@ export function topBar(state, actions) {
   const onLanding = state.stage === 'welcome'
   // The gate and the first conversation are the live AI steps; every other stage after the landing page is simulated.
   const live = state.stage === 'gate' || state.stage === 'conversation'
-  const liveLabel = state.stage === 'conversation' ? 'Live · AI reply' : 'Live · Jev classification'
+  const liveLabel = state.stage === 'conversation' ? (dev ? 'Live · AI reply' : null) : 'Live · Jev classification'
   const understandingTarget = state.stage === 'done' || state.stage === 'handoff' ? 'record' : 'review'
 
   return h('header', { class: 'bar', role: 'banner' },
     h('div', { class: 'brand' }, 'Compás Caribe',
-      live ? h('small', null, liveLabel) : onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
+      live ? (liveLabel ? h('small', null, liveLabel) : null) : onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
     showRoute
       ? h('nav', { class: 'bar-mid', 'aria-label': 'Journey' },
         h('div', { class: 'route', role: 'list', 'aria-label': 'Route through the journey' }, segs))

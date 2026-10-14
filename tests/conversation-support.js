@@ -8,6 +8,7 @@
 export const GOOD = Object.freeze({
   describes: 'problem',
   uncertainty: 'What a working system would change for the staff who retype the orders.',
+  explores: 'outcome',
   reflection: 'Orders arrive over WhatsApp and get retyped into a notebook, so they are easy to lose.',
   question: 'When an order does slip through, what is it that you most need to stop happening?',
 })

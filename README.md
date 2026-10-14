@@ -44,6 +44,8 @@ request counts are deterministic; the real-endpoint scenario follows the real
 conversation route too when the server is configured to qualify words.
 
 Useful URL flags: `?audit` logs an overflow audit after every render,
+`?diagnostics` shows the engineering detail the customer-facing conversation
+leaves out,
 `?fast` removes all simulated delays (classification, discovery, statement and
 handoff), `?fresh` clears the saved journey. `npm run test:browser` runs the
 harness against `http://localhost:5173`.
@@ -228,30 +230,46 @@ fallback), qualification check, input ceiling (`GATE_MAX_CHARS`),
 timeout (`CONVERSATION_TIMEOUT_MS`, default 25 s), and
 `CONVERSATION_ENABLED=false` as a switch.
 
-**What is asked.** `prompt.js` holds the agent's instructions. The model is
-constrained to a schema (`describes`, `uncertainty`, `reflection`,
-`question`, in that order: it settles what was described and what is unclear
-before it writes what the visitor reads). The visitor's text is wrapped in
-`<visitor_description>` tags, a closing tag typed by the visitor cannot end the
-block, and the instructions say it is data, not instructions.
+**What is asked.** `prompt.js` holds the agent's instructions: three beats
+(recognise their situation, show what it is really about, ask one concrete
+question), steered by a private checklist of what a project's purpose needs
+(*situation* today, *people*, *outcome*, *stakes*). It asks about the missing part
+that is easiest to answer, which for a first message is usually what happens
+today ("What happens today when ...?"), not an abstract goal. It may name the
+need beneath the request but never describe how things work now, propose
+features, presuppose, pad or flatter. The model is constrained to a schema
+(`describes`, `uncertainty`, `explores`, `reflection`, `question`, in that
+order: it settles what was described, what is unknown and which part of the
+purpose the question is about before it writes what the visitor reads). The
+visitor's text is wrapped in `<visitor_description>` tags, a closing tag typed by
+the visitor cannot end the block, and the instructions say it is data, not
+instructions.
 
 **What is accepted.** `validateOpening` (`schema.js`) holds the answer to what
 a schema cannot say: both parts present, the reflection contains no question,
 the question is one sentence with one question mark at its end, about 30 to 70
 words (60 + 45 and 90 together are the hard caps), no greeting, no praise, no
-exclamation marks, no markup. One repair is allowed: a second question tacked
-on with ", and what ...?" is dropped when what precedes it is a complete
-question (words are only ever removed, and the log records `repaired`). A
+exclamation marks, no markup. Two repairs are allowed, and both only
+remove words (the log records `repaired`): a second question tacked on with
+", and what ...?" is dropped when what precedes it is a complete question, and
+a sentence of encouragement ("That is a good place to begin.") is dropped from
+the reflection when other sentences remain. A
 response that still fails, is cut off at the token ceiling, or is refused is
 never shown; the visitor sees a plain message, keeps their words and can try
 again. The browser re-validates before it renders.
 
-**Display.** One exchange at a time, never a transcript: the visitor's words (a
-preview with the full text one tap away), what Compás Caribe took from them,
-the one question, and the answer field. On short or keyboard-open screens the
-words move behind a link and the *Full exchange* overlay pages through
-everything. The visitor's answer is recorded and persisted locally;
-the interface says plainly that replies after the first are not connected yet.
+**Display.** One thread, one exchange at a time, never a transcript: the
+visitor's project (a preview, with *Read in full* and *Edit* beside it), what
+Compás Caribe took from it and the one question, and the answer field, joined by
+a thin rail and sitting where the landing page's field sat. There is no header
+or footer chrome and no engineering label: that the reply is AI-written is said
+once, quietly ("Compás Caribe · AI-assisted"). On short or keyboard-open screens
+the project shrinks to a line, the reading steps aside on a phone held upright,
+and the *Full exchange* overlay pages through everything. The visitor's answer is
+recorded and persisted locally; the interface says plainly that later replies
+are not connected yet. `?diagnostics` (or `?audit`) shows the engineering
+detail: model, latency, tokens, what the question explores, and the top bar's
+live labels.
 
 | Variable | Default | Meaning |
 |---|---|---|

@@ -11,7 +11,7 @@ test('a well-formed opening passes and is returned tidied', () => {
   assert.equal(r.ok, true)
   assert.equal(r.opening.reflection, 'Orders arrive over WhatsApp and get retyped into a notebook.')
   assert.equal(r.opening.question, GOOD.question)
-  assert.deepEqual(Object.keys(r.opening), ['describes', 'uncertainty', 'reflection', 'question'])
+  assert.deepEqual(Object.keys(r.opening), ['describes', 'uncertainty', 'explores', 'reflection', 'question'])
 })
 
 test('both parts are required: a missing or empty reflection or question is refused', () => {
@@ -24,6 +24,8 @@ test('both parts are required: a missing or empty reflection or question is refu
   assert.equal(reason({ question: '' }), 'question_missing')
   assert.equal(reason({ question: 'Why?' }), 'question_missing')
   assert.equal(reason({ describes: 'wish' }), 'describes')
+  assert.equal(reason({ explores: 'budget' }), 'explores')
+  assert.equal(validateOpening({ ...GOOD, explores: undefined }).reason, 'shape')
   assert.equal(reason({ reflection: 42 }), 'shape')
 })
 
@@ -45,6 +47,10 @@ test('a second question tacked on with "and" is dropped when what precedes it is
     ['If you could fix only one thing next month, which would matter most?', 'compound_question'])
   assert.deepEqual(kept({ question: 'Who decides what gets booked and how do they decide?' }), ['Who decides what gets booked?', 'compound_question'])
   assert.deepEqual(kept({ question: '¿Quién lo usa hoy y cómo cambiaría su día?' }), ['¿Quién lo usa hoy?', 'compound_question'])
+  // A clause that merely continues the sentence is not a second question, and nothing is cut.
+  assert.deepEqual(kept({ question: 'What is a recent moment when you wanted to see something and could not?' }), ['What is a recent moment when you wanted to see something and could not?', null])
+  assert.deepEqual(kept({ question: 'When a request is sent and did not get an answer, who notices first?' }), ['When a request is sent and did not get an answer, who notices first?', null])
+  assert.deepEqual(kept({ question: 'Who sends a request, and who has to approve it?' }), ['Who sends a request?', 'compound_question'])
   // The part that is kept must itself be a question, and a clean one is never touched.
   assert.deepEqual(kept({ question: 'Tell me what prompted it, and what would change for the doctors?' }), ['two_questions', null])
   assert.deepEqual(kept({ question: 'Who uses it, and and how, and what for in the end?' }).slice(1), [null])
@@ -52,6 +58,19 @@ test('a second question tacked on with "and" is dropped when what precedes it is
   // Nothing is added: the kept words are a prefix of what the model wrote.
   const wrote = 'When you picture it fixed, what would be different at the front desk, and who would notice first?'
   assert.ok(wrote.startsWith(kept({ question: wrote })[0].slice(0, -1)))
+})
+
+test('a sentence of encouragement is dropped from the reflection; a reflection that is nothing else is refused', () => {
+  const r = check({ reflection: 'You want things to run better in how your team works. That is a good place to begin.' })
+  assert.equal(r.ok, true)
+  assert.equal(r.opening.reflection, 'You want things to run better in how your team works.')
+  assert.equal(r.repaired, 'encouragement')
+  assert.equal(reason({ reflection: 'That is a common challenge for small clinics.' }), 'praise')
+  // Both repairs can apply; the record says so.
+  const both = check({ reflection: 'Orders arrive over WhatsApp and get retyped by hand. That is a common challenge.', question: 'Who sends a request, and who has to approve it?' })
+  assert.equal(both.repaired, 'encouragement+compound_question')
+  // Ordinary sentences that share a word are left alone.
+  assert.equal(check({ reflection: 'The good news in what you wrote is that the volume is small: about 25 children a week.' }).repaired, null)
 })
 
 test('the reply stays short enough for the screen', () => {
@@ -66,7 +85,7 @@ test('no greeting, no praise, no exclamation, no markup', () => {
   assert.equal(reason({ reflection: 'Hello! Orders arrive over WhatsApp.' }), 'greeting')
   assert.equal(reason({ reflection: 'Thanks for sharing that. Orders arrive over WhatsApp.' }), 'greeting')
   assert.equal(reason({ reflection: 'Hola, los pedidos llegan por WhatsApp y se pierden.' }), 'greeting')
-  assert.equal(reason({ reflection: 'Great idea. Orders arrive over WhatsApp and get lost.' }), 'praise')
+  assert.equal(reason({ reflection: 'Excellent. Orders arrive over WhatsApp and get lost.' }), 'praise')
   assert.equal(reason({ reflection: "That's a great problem to solve, with orders arriving over WhatsApp." }), 'praise')
   assert.equal(reason({ reflection: 'Qué buena idea: los pedidos llegan por WhatsApp.' }), 'praise')
   assert.equal(reason({ reflection: 'Orders arrive over WhatsApp and get lost!' }), 'exclamation')
@@ -86,7 +105,7 @@ test('Spanish openings pass the same structure', () => {
 })
 
 test('the structured-output schema asks for the four fields, in the order the model should settle them', () => {
-  assert.deepEqual(Object.keys(OPENING_SCHEMA.properties), ['describes', 'uncertainty', 'reflection', 'question'])
-  assert.deepEqual(OPENING_SCHEMA.required, ['describes', 'uncertainty', 'reflection', 'question'])
+  assert.deepEqual(Object.keys(OPENING_SCHEMA.properties), ['describes', 'uncertainty', 'explores', 'reflection', 'question'])
+  assert.deepEqual(OPENING_SCHEMA.required, ['describes', 'uncertainty', 'explores', 'reflection', 'question'])
   assert.equal(OPENING_SCHEMA.additionalProperties, false)
 })
