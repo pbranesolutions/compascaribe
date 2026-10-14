@@ -1,7 +1,7 @@
 import './styles/tokens.css'
 import './styles/app.css'
 
-import { createJourney } from './app/journey.js'
+import { createJourney, STORAGE_KEY } from './app/journey.js'
 import { createProvider } from './domain/discovery/provider.js'
 import { bindViewport, auditOverflow, describe } from './ui/fit.js'
 import { createRenderer } from './ui/render.js'
@@ -11,7 +11,7 @@ const audit = params.has('audit')
 const fast = params.has('fast') // skips simulated latency, for automated tests
 
 if (params.has('fresh')) {
-  try { localStorage.removeItem('compascaribe.journey.v1') } catch { /* ignore */ }
+  try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
 }
 
 const provider = createProvider({ mode: 'simulated', latency: !fast })

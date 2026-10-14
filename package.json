@@ -10,7 +10,8 @@
     "check": "npm test && npm run build",
     "preview": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
-    "test:browser": "node tests/browser/run.mjs --url http://localhost:5173"
+    "test:browser": "node tests/browser/run.mjs --url http://localhost:5173",
+    "test:live": "node tests/live/gate.live.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.31.2",

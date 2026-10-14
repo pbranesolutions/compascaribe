@@ -66,6 +66,7 @@
    inversion to paper for the statement, deep green for commitment, cooler slate
    once the work crosses into Decision Channel. */
 .app[data-stage='welcome'] { --surface: var(--indigo); }
+.app[data-stage='gate'],
 .app[data-stage='qualifying'] { --surface: var(--wine); }
 .app[data-stage='declined'],
 .app[data-stage='uncertain'] { --surface: var(--graphite); }

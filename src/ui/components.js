@@ -57,22 +57,25 @@ export function topBar(state, actions) {
   const readout = readoutFor(state)
   const hasWork = Boolean(state.ctx.submission) && state.stage !== 'welcome'
   // Progress is shown once there is progress to show: not before the visitor has begun.
-  const showRoute = state.stage !== 'welcome'
+  // The gate is a diagnostic end point: there is no route beyond it to show.
+  const showRoute = state.stage !== 'welcome' && state.stage !== 'gate'
   // The landing page has one purpose: describing the project. Prototype notes
   // are offered once there is simulated output to explain.
   const onLanding = state.stage === 'welcome'
+  // The gate is the one live AI step; every other stage after the landing page is simulated.
+  const live = state.stage === 'gate'
   const understandingTarget = state.stage === 'done' || state.stage === 'handoff' ? 'record' : 'review'
 
   return h('header', { class: 'bar', role: 'banner' },
     h('div', { class: 'brand' }, 'Compás Caribe',
-      onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
+      live ? h('small', null, 'Live · Jev classification') : onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
     showRoute
       ? h('nav', { class: 'bar-mid', 'aria-label': 'Journey' },
         h('div', { class: 'route', role: 'list', 'aria-label': 'Route through the journey' }, segs))
       : h('div', { class: 'bar-mid' }),
     h('div', { class: 'bar-end' },
       readout ? h('span', { class: 'readout', html: readout }) : null,
-      onLanding ? null : h('button', { type: 'button', class: 'link bar-notes', 'data-focus-key': 'bar:notes-tiny', onClick: () => actions.openOverlay('notes', 0, 'bar:notes-tiny') }, 'Simulated'),
+      onLanding || live ? null : h('button', { type: 'button', class: 'link bar-notes', 'data-focus-key': 'bar:notes-tiny', onClick: () => actions.openOverlay('notes', 0, 'bar:notes-tiny') }, 'Simulated'),
       hasWork && state.ctx.exchanges.length ? h('button', { type: 'button', class: 'link bar-understanding', 'data-focus-key': 'bar:understanding', onClick: () => actions.openOverlay(understandingTarget, 0, 'bar:understanding') }, 'Understanding') : null,
       hasWork ? h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:reset', onClick: () => actions.reset() }, 'Start over') : null),
     showRoute ? h('div', { class: 'route-bar', 'aria-hidden': 'true' },
@@ -88,6 +91,7 @@ function readoutFor(state) {
     return ex ? `<b>${FOCUS_TITLES[ex.focus]}</b> · ${state.stepIndex + 1} / ${state.ctx.exchanges.length}` : null
   }
   if (s === 'statement' || s === 'refine') return `<b>Statement</b> · Draft ${state.ctx.statement?.version || 1}`
+  if (s === 'gate') return '<b>Jev gate</b>'
   if (s === 'qualifying') return '<b>Reading</b>'
   if (s === 'composing') return '<b>Writing</b>'
   if (s === 'continue') return '<b>Continue</b>'

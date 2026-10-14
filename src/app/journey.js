@@ -1,6 +1,10 @@
 // Customer journey: a finite set of interface states with explicit transitions
 // and preserved context. The UI renders `state`; it never mutates it.
 //
+// Entry:   welcome → gate. Begin runs the live Jev gate and the journey STOPS at
+//          the diagnostic: the PROCEED / BLOCK decision is displayed, never executed.
+//          Everything below is the simulated downstream flow, kept intact and
+//          currently unreachable from Begin; it is the work the gate will feed.
 // Stages:  welcome → qualifying → (declined | uncertain | discovery)
 //          discovery → composing → statement ⇄ refine → continue → handoff → done
 // Overlays (review, words, drafts, notes, record) sit on top of any
@@ -11,6 +15,7 @@ import {
   withExchanges, withHandoff, withQualification, withStatement, withSubmission,
 } from '../domain/context.js'
 import { createProvider } from '../domain/discovery/provider.js'
+import { createGateClient } from '../domain/gate/client.js'
 import { buildHandoffPayload } from '../domain/handoff/payload.js'
 import { sendToDecisionChannel } from '../domain/handoff/transport.js'
 
@@ -20,12 +25,13 @@ export { ROUTE } from './route.js'
 // judged; whether the words describe a project is the qualifier's call, not a rule here.
 export const ASK_MORE = "Tell us a little more about what you'd like to change or accomplish."
 
-const STORAGE_KEY = 'compascaribe.journey.v1'
+// v2: journeys saved before the Jev gate resumed straight into the simulated flow.
+export const STORAGE_KEY = 'compascaribe.journey.v2'
 const RESUME_WINDOW_MS = 1000 * 60 * 60 * 24 * 7
 
 // Forward transitions push a history entry; everything else replaces it, so
 // the browser's Back button walks the journey backwards without piling up.
-const ORDER = ['welcome', 'qualifying', 'discovery', 'composing', 'statement', 'refine', 'continue', 'handoff', 'done']
+const ORDER = ['welcome', 'gate', 'qualifying', 'discovery', 'composing', 'statement', 'refine', 'continue', 'handoff', 'done']
 
 const NO_HANDOFF = { status: 'none', receiptId: null, at: null }
 
@@ -49,6 +55,7 @@ function initialState(ctx = createContext()) {
     notes: [],
     parts: null,
     sketch: null,
+    gate: null,
     receipt: null,
     payload: null,
     resumed: false,
@@ -78,7 +85,7 @@ function validContext(ctx) {
   return true
 }
 
-export function createJourney({ storage = safeStorage(), provider = createProvider(), latency = true, history: hist = typeof history !== 'undefined' ? history : null } = {}) {
+export function createJourney({ storage = safeStorage(), provider = createProvider(), gate = createGateClient(), latency = true, history: hist = typeof history !== 'undefined' ? history : null } = {}) {
   let state = initialState()
   const listeners = new Set()
   let seq = 0
@@ -131,6 +138,8 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
       const lastStep = Math.max(0, ctx.exchanges.length - 1)
       let stepIndex = Math.min(Number(saved.stepIndex) || 0, lastStep)
       // Transient stages resume at their stable neighbour, keeping the work.
+      // The gate result is a diagnostic of one request; the words are what is kept.
+      if (stage === 'gate') stage = 'welcome'
       if (stage === 'qualifying') stage = ctx.exchanges.length ? 'discovery' : 'welcome'
       if (stage === 'composing') {
         stage = ctx.statement ? 'statement' : ctx.exchanges.length ? 'discovery' : 'welcome'
@@ -211,6 +220,25 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
     }
   }
 
+  /**
+   * The Jev gate. Obtains the decision and stops: nothing is routed on it. A
+   * failure is shown as UNAVAILABLE, never as a decision, and the words stay.
+   */
+  async function runGate() {
+    await guarded('Classifying', 'welcome', async (alive) => {
+      const text = state.ctx.submission.text
+      const outcome = await gate.classify(text)
+      if (!alive()) return
+      if (outcome.rejected) {
+        const message = outcome.rejected === 'too_long'
+          ? `That is more than fits here (${LIMITS.submission} characters). Trim it a little; detail comes next.`
+          : ASK_MORE
+        return go('welcome', { drafts: { ...state.drafts, welcome: text }, error: { message }, gate: null }, { replace: true })
+      }
+      set({ gate: outcome.result, notes: addNote({ stage: 'gate', live: true, decision: outcome.result.decision }) })
+    })
+  }
+
   async function qualifyAndRoute() {
     await guarded('Reading', 'welcome', async (alive) => {
       const q = await provider.qualify(state.ctx)
@@ -253,9 +281,16 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
       if (!text) return set({ error: { message: ASK_MORE } })
       if (text.length > LIMITS.submission) return set({ error: { message: `That is more than fits here (${LIMITS.submission} characters). Trim it a little; detail comes next.` } })
       const ctx = withSubmission(createContext(), text)
-      set({ ctx, stepIndex: 0, selection: null, ownWordsOpen: false, parts: null, receipt: null, payload: null, sketch: null, resumed: false, returnTo: null })
-      go('qualifying')
-      await qualifyAndRoute()
+      set({ ctx, stepIndex: 0, selection: null, ownWordsOpen: false, parts: null, receipt: null, payload: null, sketch: null, gate: null, resumed: false, returnTo: null })
+      go('gate')
+      await runGate()
+    },
+
+    /** Run the gate again on the same, unchanged words. */
+    async retryGate() {
+      if (state.busy || state.stage !== 'gate' || !state.ctx.submission) return
+      set({ gate: null })
+      await runGate()
     },
 
     async clarify() {
@@ -336,6 +371,10 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
     back() {
       const s = state.stage
       if (state.overlay) return actions.closeOverlay()
+      if (s === 'gate') {
+        cancel()
+        return go('welcome', { drafts: { ...state.drafts, welcome: state.ctx.submission?.text || state.drafts.welcome }, gate: null }, { replace: true })
+      }
       if (s === 'qualifying') {
         cancel()
         return go('welcome', { drafts: { ...state.drafts, welcome: state.ctx.submission?.text || state.drafts.welcome } }, { replace: true })

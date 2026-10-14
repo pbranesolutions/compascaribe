@@ -1,0 +1,14 @@
+# Copy to .dev.vars (git-ignored) for `npm run dev` and `npm run preview`.
+# In production set the secret with: npx wrangler secret put TYPESAFE_API_KEY
+TYPESAFE_API_KEY=
+
+# Optional overrides (defaults live in src/domain/gate/config.js):
+# JEV_MODEL=jev-latest
+# GATE_MAX_CHARS=2000
+# GATE_TIMEOUT_MS=6000
+# GATE_DEADLINE_MS=12000
+# GATE_MAX_ATTEMPTS=2
+# GATE_SPAM_BLOCK=0.90
+# GATE_SPAM_INTENT_CEILING=0.50
+# GATE_IRRELEVANCE_BLOCK=0.90
+# GATE_IRRELEVANCE_INTENT_CEILING=0.40

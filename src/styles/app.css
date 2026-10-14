@@ -728,3 +728,47 @@ html[data-unusable='true'] .stage > :not(.guard) { display: none !important; }
   :root { --ply2: #17143f; --ply3: #110f30; --muted: #b1adb5; --faint: #7f7c90; --hair: #4a476c; }
   .app[data-stage='statement'], .app[data-stage='refine'] { --ply2: #e9e3da; --muted: #55567a; --faint: #8e8fa6; --hair: #c9c3b8; }
 }
+
+/* --------------------------------------------------------------------------
+   Jev gate diagnostic (temporary; presentation lives in src/ui/diagnostic.js)
+-------------------------------------------------------------------------- */
+
+.gate-decision { display: grid; gap: 4px; min-width: 0; }
+.gate-word { font-family: var(--font-headline); font-weight: 600; letter-spacing: 0.03em; line-height: 1.22; padding-bottom: 0; }
+.gate-word[data-decision='PROCEED'] { color: var(--accent); }
+.gate-word[data-decision='UNAVAILABLE'] { color: var(--muted); }
+.gate-signals { display: grid; gap: 8px; min-width: 0; }
+.gate-signal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'k n' 'bar bar';
+  gap: 4px 12px;
+  align-items: baseline;
+  min-width: 0;
+}
+.gate-signal .k { grid-area: k; font: 500 11px/1.25 var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); overflow-wrap: anywhere; }
+.gate-signal .n { grid-area: n; font: 500 15px/1.1 var(--font-mono); color: var(--ink); text-align: right; }
+.gate-signal .bar { grid-area: bar; display: block; height: 5px; border-radius: 3px; background: color-mix(in oklab, var(--ink) 16%, var(--surface)); overflow: hidden; }
+.gate-signal .bar i { display: block; height: 100%; background: var(--ink); }
+@media (min-width: 600px) {
+  .gate-signal { grid-template-columns: minmax(0, 15rem) minmax(0, 1fr) 4.5ch; grid-template-areas: 'k bar n'; align-items: center; gap: 12px; }
+}
+html[data-short='true'] .gate-signals { gap: 5px; }
+html[data-tiny='true'] .gate-signals { gap: 3px; }
+html[data-tiny='true'] .gate-signal .bar { display: none; }
+.gate-telemetry { display: grid; grid-template-columns: repeat(3, minmax(0, auto)); justify-content: start; gap: 6px 22px; margin: 0; padding-top: 8px; border-top: 1px solid var(--hair); min-width: 0; }
+.gate-telemetry > div { display: grid; gap: 2px; min-width: 0; }
+.gate-telemetry dt { margin: 0; }
+.gate-telemetry dd { margin: 0; font: 500 12px/1.25 var(--font-mono); color: var(--ink); overflow-wrap: anywhere; }
+html[data-tiny='true'] .gate-telemetry { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 8px; padding-top: 4px; }
+html[data-tiny='true'] .gate-telemetry dd { font-size: 11px; }
+/* Short screens: one line per signal, tighter rows, so the rules still fit a page or two. */
+html[data-short='true'] .gate-signal { grid-template-areas: 'k n'; }
+html[data-short='true'] .gate-signal .bar { display: none; }
+html[data-short='true'] .gate-signals { gap: 3px; }
+html[data-short='true'] .gate .row { padding: 5px 0; gap: 8px; grid-template-columns: 22px minmax(0, 1fr); }
+html[data-short='true'] .gate .row .v { font-size: 13px !important; line-height: 1.25; }
+html[data-short='true'] .gate-telemetry { gap: 2px 14px; padding-top: 5px; }
+html[data-short='true'] .gate-telemetry dd { font-size: 11px; }
+html[data-short='true'] .gate-decision { gap: 0; }
+html[data-short='true'] .gate .ply-body { gap: 6px; }

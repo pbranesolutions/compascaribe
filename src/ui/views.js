@@ -7,6 +7,7 @@ import { clarifyPrompt } from '../domain/discovery/clarify.js'
 import { trimTo } from '../domain/discovery/language.js'
 import { FOCUS_TITLES, OVERLAY_TITLES, REFINEMENTS } from '../domain/discovery/vocabulary.js'
 import { summarizePayload } from '../domain/handoff/payload.js'
+import { gateView } from './diagnostic.js'
 import { h } from './dom.js'
 import { paginateToFit } from './fit.js'
 import {
@@ -447,7 +448,8 @@ export function overlay(state, actions) {
   } else if (name === 'notes') {
     const notes = [...state.notes].reverse()
     const intro = [
-      ['What is simulated', 'Classification, discovery questions, reflections and the project statement are produced by deterministic rules in this browser. No model is called and nothing is sent anywhere.'],
+      ['What is live', 'The classification at Begin: your words go to a Compás Caribe server function, which asks the Jev model (TypeSafe AI) three yes/no questions and applies fixed rules to the probabilities. Nothing is generated and nothing is routed on the result.'],
+      ['What is simulated', 'Everything after that gate: discovery questions, reflections and the project statement are produced by deterministic rules in this browser. No generative model is called.'],
       ['What is real', 'The journey, the project context it builds, the limits on every text, the no-scroll layout and the handoff record are the real architecture. Each simulated step sits behind an interface a Claude model or Jev will replace.'],
     ]
     const items = [...intro.map(([k, v]) => ({ k, v })), ...notes.map(n => ({ k: `${n.stage || 'step'} · ${n.at?.slice(11, 19) || ''}`, v: noteText(n) }))]
@@ -471,7 +473,9 @@ export function overlay(state, actions) {
   return el
 }
 
+const gate = (state, actions) => gateView(state, actions, { head, foot, primary, ghost, ply, link })
+
 export const VIEWS = {
-  welcome, qualifying, declined, uncertain, discovery, composing, statement, refine,
+  welcome, gate, qualifying, declined, uncertain, discovery, composing, statement, refine,
   continue: continueView, handoff, done,
 }
