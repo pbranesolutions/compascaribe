@@ -2,7 +2,7 @@
 // focus and announcements, fits text to its boxes, and (in audit mode) proves
 // nothing overflows after every render.
 
-import { latestOpening } from '../domain/context.js'
+import { isConfirmed, latestCompas, latestReply } from '../domain/context.js'
 import { FOCUS_TITLES, OVERLAY_TITLES } from '../domain/discovery/vocabulary.js'
 import { activeFocusKey, strip, topBar, understandingPly } from './components.js'
 import { clear, h } from './dom.js'
@@ -25,6 +25,7 @@ export function createRenderer({ root, live, journey, audit = false }) {
       s.receipt?.receiptId || null, s.notes.length, s.resumed, s.ctx.id, s.returnTo,
       s.gate ? [s.gate.decision, s.gate.latencyMs, s.gate.failure?.kind || null] : null,
       s.opening.status, s.opening.failure, s.ctx.conversation?.turns?.length || 0,
+      s.turn.status, s.turn.failure, s.correcting,
     ])
   }
 
@@ -37,9 +38,12 @@ export function createRenderer({ root, live, journey, audit = false }) {
     }
     if (s.stage === 'statement') return `Project statement, draft ${s.ctx.statement?.version || 1}, ready to review.`
     if (s.stage === 'conversation') {
-      const o = latestOpening(s.ctx)
-      if (o) return `Compás Caribe: ${o.reflection} ${o.question}`
-      return s.opening.status === 'failed' ? 'The reply could not be prepared. Your words are kept.' : 'Preparing a reply.'
+      const c = latestCompas(s.ctx)
+      if (!c) return s.opening.status === 'failed' ? 'The reply could not be prepared. Your words are kept.' : 'Preparing a reply.'
+      if (latestReply(s.ctx)) return s.turn.status === 'failed' ? 'The reply could not be prepared. Your answer is kept.' : 'Preparing a reply.'
+      if (isConfirmed(s.ctx)) return 'Your project’s purpose is confirmed. You can continue.'
+      if (c.kind === 'statement') return `Compás Caribe, the project’s purpose: ${c.statement} ${c.question}`
+      return `Compás Caribe: ${[c.reflection, c.question].filter(Boolean).join(' ')}`
     }
     if (s.stage === 'gate') return s.gate ? `Classification complete. Decision: ${s.gate.decision}.` : 'Classifying your words.'
     if (s.stage === 'qualifying') return 'Reading your words.'

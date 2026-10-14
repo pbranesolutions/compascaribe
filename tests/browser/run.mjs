@@ -18,6 +18,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { validateOpening } from '../../src/domain/conversation/schema.js'
+import { validateTurn } from '../../src/domain/conversation/turn.js'
 import { evaluate, key, launchChrome, navigate, screenshot, setViewport, sleep, typeText as cdpType, waitFor } from './cdp.mjs'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => (a.startsWith('--') ? [a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true] : [])).filter(x => x.length))
@@ -78,16 +79,25 @@ const DEV = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE)
 const GATE_HOOK = `(() => {
   const real = window.fetch.bind(window)
   const g = (window.__gate = { stub: null, last: null, calls: 0 })
-  window.__conv = { stub: null, last: null, calls: 0 }
+  // stub answers the first reply; turns is the queue of answers to later replies (the last one repeats).
+  window.__conv = { stub: null, turns: [], last: null, lastTurn: null, calls: 0, turnCalls: 0 }
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input.url
     if (url.includes('/api/conversation')) {
       const c = window.__conv
       c.calls++
-      try { c.last = JSON.parse(init.body) } catch { c.last = null }
-      if (c.stub) {
-        if (c.stub.delayMs) await new Promise(r => setTimeout(r, c.stub.delayMs))
-        return new Response(JSON.stringify(c.stub.body), { status: c.stub.status, headers: { 'content-type': 'application/json' } })
+      let sent = null
+      try { sent = JSON.parse(init.body) } catch { sent = null }
+      c.last = sent
+      let stub = c.stub
+      if (sent && Array.isArray(sent.turns) && sent.turns.length) {
+        c.turnCalls++
+        c.lastTurn = sent
+        if (c.turns.length) stub = c.turns.length > 1 ? c.turns.shift() : c.turns[0]
+      }
+      if (stub) {
+        if (stub.delayMs) await new Promise(r => setTimeout(r, stub.delayMs))
+        return new Response(JSON.stringify(stub.body), { status: stub.status, headers: { 'content-type': 'application/json' } })
       }
       const res = await real(input, init)
       c.lastResponse = null
@@ -390,11 +400,56 @@ for (const o of [SHORT_OPENING, LONG_OPENING, SPANISH_OPENING]) {
   if (!v.ok) throw new Error('fixture is not a valid opening: ' + v.reason)
 }
 
-const convOk = opening => ({ schema: 'compascaribe.conversation/1', status: 'ok', opening, model: 'claude-sonnet-5-5', usage: { inputTokens: 640, outputTokens: 150 }, latencyMs: 2140 })
+const renewed = n => ({ token: `e2e-renewed-${n}`, expiresAt: Date.now() + 3600000 })
+const convOk = opening => ({ schema: 'compascaribe.conversation/1', status: 'ok', opening, qualification: renewed(1), progress: { replies: 1, limit: 10 }, model: 'claude-sonnet-5-5', usage: { inputTokens: 640, outputTokens: 150 }, latencyMs: 2140 })
 const convFail = kind => ({ schema: 'compascaribe.conversation/1', status: 'unavailable', failure: { kind } })
 const proceedWithQualification = () => ({ ...GATE_CASES[0].body, qualification: { token: 'e2e-qualification', expiresAt: Date.now() + 3600000 } })
-const setConv = (page, stub) => evaluate(page, `(window.__conv.stub = ${JSON.stringify(stub)}, window.__conv.calls = 0, true)`)
-const counts = page => evaluate(page, 'JSON.stringify({ gate: window.__gate.calls, conv: window.__conv.calls, last: window.__conv.last })').then(JSON.parse)
+const setConv = (page, stub) => evaluate(page, `(window.__conv.stub = ${JSON.stringify(stub)}, window.__conv.turns = [], window.__conv.calls = 0, window.__conv.turnCalls = 0, true)`)
+/** The answers to the visitor's later replies, in order (the last repeats). */
+const setTurns = (page, ...stubs) => evaluate(page, `(window.__conv.turns = ${JSON.stringify(stubs)}, window.__conv.turnCalls = 0, true)`)
+const counts = page => evaluate(page, 'JSON.stringify({ gate: window.__gate.calls, conv: window.__conv.calls, turns: window.__conv.turnCalls, last: window.__conv.last, lastTurn: window.__conv.lastTurn })').then(JSON.parse)
+
+// What the agent returns for a later reply. Each is checked against the server's own validation, so a fixture
+// that could never have been shown cannot hide a layout problem.
+const understanding = {
+  purpose: 'Orders reach the kitchen without being retyped.',
+  confirmed: ['Orders arrive over WhatsApp', 'They are retyped into a notebook'],
+  inferred: ['Retyping is where they get lost'],
+  open: ['What a lost order costs'],
+  coverage: { problem: 'clear', beneficiaries: 'partial', outcome: 'partial', value: 'unknown', success: 'unknown' },
+}
+const TURN_ASK = {
+  reading: 'answers', understanding, move: 'ask', statement: '',
+  reflection: 'Marta retypes the orders every evening, and some get lost on the way into the notebook.',
+  question: 'What happened the last time an order was lost?',
+}
+const TURN_LONG = {
+  ...TURN_ASK,
+  reflection: 'You run a clinic with three doctors where the front desk books by phone into a paper agenda, so patients get double booked and nobody can see tomorrow’s list. A shared spreadsheet did not hold, and each empty slot is a patient who could have been seen.',
+  question: 'If the receptionists no longer had to remember to update anything and every patient arrived on the right day, what would you notice first changing across the clinic?',
+}
+const TURN_SPANISH = {
+  ...TURN_ASK,
+  reflection: 'Tu esposa atiende el teléfono todo el día, apunta cada cita en un cuaderno y a veces se pisan dos.',
+  question: '¿Qué pasó la última vez que se pisaron dos citas en el taller?',
+}
+const TURN_STATEMENT = {
+  ...TURN_ASK, move: 'statement', reflection: '',
+  statement: 'Orders that arrive over WhatsApp should reach the kitchen without Marta retyping them each evening, so that none are lost and she is free to prepare the next day.',
+  question: 'Does this capture what the project is for, or is there something you would change?',
+}
+// The longest statement the server accepts (75 words), with a long confirming question.
+const TURN_STATEMENT_LONG = {
+  ...TURN_STATEMENT,
+  statement: 'This is for the three doctors and the two part-time receptionists of the clinic: every appointment is visible to everyone in a way the receptionists find very easy, so that the doctors start each morning knowing exactly who is coming, with no double bookings and no confusion at the front desk. Patients are also reminded, so that fewer of the roughly ten weekly slots stay empty.',
+  question: 'Does this say what the project is for, or is there something you would change or add before we go on?',
+}
+for (const [name, t] of Object.entries({ TURN_ASK, TURN_LONG, TURN_SPANISH, TURN_STATEMENT, TURN_STATEMENT_LONG })) {
+  const v = validateTurn(t)
+  if (!v.ok) throw new Error(`fixture ${name} is not a valid turn: ${v.reason}`)
+}
+const turnOk = (turn, n = 2) => ({ schema: 'compascaribe.conversation/1', status: 'ok', turn, qualification: renewed(n), progress: { replies: n, limit: 10 }, model: 'claude-sonnet-5-5', usage: { inputTokens: 900, outputTokens: 420 }, latencyMs: 4200 })
+const ok200 = body => ({ status: 200, body })
 const READY = 'window.__cc.state.stage === "conversation" && window.__cc.state.opening.status === "ready" && !window.__cc.state.busy'
 
 async function fillReply(page, text) {
@@ -440,11 +495,12 @@ const convDom = page => evaluate(page, `JSON.stringify((() => {
  * Begin with the gate answering PROCEED + a qualification and the conversation
  * route answering with `stub`. Resolves once the conversation stage is showing.
  */
-async function beginConversation(page, text, stub, { wait = READY, delayMs = 0, query = '' } = {}) {
+async function beginConversation(page, text, stub, { wait = READY, delayMs = 0, query = '', turns = [ok200(turnOk(TURN_ASK))] } = {}) {
   await navigate(page, `${BASE}/?fast&fresh${query}`)
   await waitFor(page, 'window.__cc && window.__cc.state.stage === "welcome"')
   await setGate(page, { status: 200, body: proceedWithQualification() })
   await setConv(page, { ...stub, delayMs })
+  await setTurns(page, ...turns)
   await fillWelcome(page, text)
   await click(page, '.btn-primary')
   if (wait) await waitFor(page, wait, { timeout: 10000 })
@@ -484,33 +540,61 @@ async function conversationScenarios(page, vp) {
   await shotAudit('typing-long')
   const typed = await evaluate(page, 'JSON.stringify({ len: document.querySelector("#reply").value.length, sendOk: (() => { const r = document.querySelector(".composer .btn-primary").getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight })() })').then(JSON.parse)
   verdict(vp, 'conv-typed-kept', typed.len === LONG.length && typed.sendOk, JSON.stringify(typed))
+  // Send: the answer is recorded and held while the reply is written (slowly here, so the state can be seen), then
+  // the reply is the active question. The words and the answer are untouched; the qualification renewed.
+  await setTurns(page, { status: 200, body: turnOk(TURN_ASK), delayMs: 700 })
   const before = await counts(page)
   await click(page, '.composer .btn-primary')
-  await sleep(120)
-  d = await convDom(page)
-  c = await counts(page)
-  await shotAudit('answered')
-  const turns = await evaluate(page, 'window.__cc.state.ctx.conversation.turns.length')
-  const answerPager = await evaluate(page, '!!document.querySelector(".conv-answer .pager")')
-  verdict(vp, 'conv-answered', turns === 2 && !d.hasComposer && /not connected yet/.test(d.notice || '') && (d.answer === LONG || (answerPager && LONG.startsWith(d.answer))), JSON.stringify({ turns, notice: d.notice, answer: (d.answer || '').slice(0, 40), answerPager }))
-  verdict(vp, 'conv-answer-stays-local', c.gate === before.gate && c.conv === before.conv, JSON.stringify({ before, after: c }))
-  await click(page, '[aria-label="Edit your answer"]')
+  await waitFor(page, 'window.__cc.state.turn.status === "generating"', { timeout: 4000 })
   await sleep(100)
   d = await convDom(page)
-  const refilled = await evaluate(page, 'document.querySelector("#reply") && document.querySelector("#reply").value')
-  await shotAudit('answer-editing')
-  verdict(vp, 'conv-answer-editable', refilled === LONG && d.hasComposer, JSON.stringify({ len: refilled && refilled.length }))
-  await evaluate(page, 'window.__cc.actions.sendReply(); true')
-  await sleep(80)
+  await shotAudit('answered-waiting')
+  const turnsWhile = await evaluate(page, 'window.__cc.state.ctx.conversation.turns.length')
+  const answerPager = await evaluate(page, '!!document.querySelector(".conv-answer .pager")')
+  const waitingSteps = await evaluate(page, 'JSON.stringify([...document.querySelectorAll(".conv-reply .step")].map(e => e.textContent))').then(JSON.parse)
+  verdict(vp, 'conv-answered-waiting', turnsWhile === 2 && !d.hasComposer && !/not connected|saved in this browser/i.test(d.notice || '') && waitingSteps.join('|') === 'Preparing a reply' && (d.answer === LONG || (answerPager && LONG.startsWith(d.answer))), JSON.stringify({ turns: turnsWhile, notice: d.notice, steps: waitingSteps, answer: (d.answer || '').slice(0, 30), answerPager }))
+  await waitFor(page, '!window.__cc.state.busy && window.__cc.state.ctx.conversation.turns.length === 3', { timeout: 6000 })
+  await sleep(150)
+  d = await convDom(page)
+  c = await counts(page)
+  await shotAudit('followup')
+  verdict(vp, 'conv-followup-request', c.turns === before.turns + 1 && c.gate === before.gate && c.lastTurn.text === TEXT && c.lastTurn.qualification === 'e2e-renewed-1' && c.lastTurn.turns.length === 2 && c.lastTurn.turns[1].text === LONG, JSON.stringify({ turns: c.turns, gate: c.gate, q: c.lastTurn && c.lastTurn.qualification, n: c.lastTurn && c.lastTurn.turns.length }))
+  verdict(vp, 'conv-followup-shown', d.hasComposer && d.max === 480 && whole(d.question, TURN_ASK.question) && d.sendVisible && d.words === TEXT && !d.technical && /Compás Caribe/.test(d.speaker || '' ) , JSON.stringify({ q: d.question, composer: d.hasComposer, words: (d.words || '').slice(0, 20) }))
+  const history = await evaluate(page, 'JSON.stringify((() => { const b = document.querySelector(".conv-history"); if (!b) return { shown: false }; const r = b.getBoundingClientRect(); return { shown: getComputedStyle(b).display !== "none" && r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight } })())').then(JSON.parse)
+  verdict(vp, 'conv-history-link', history.shown, 'the earlier exchange is one tap away')
+  // The earlier answer is not left on the page as a transcript: one question, one field.
+  const oneField = await evaluate(page, 'document.querySelectorAll("#app textarea").length === 1 && !document.querySelector(".conv-answer")')
+  verdict(vp, 'conv-one-field', oneField, 'one active question, one answer field')
 
-  // 2b. The keyboard alone is enough: type, Ctrl+Enter sends.
+  // A reply that fails keeps the answer and offers a way forward; Edit takes it back; Try again asks once more.
+  await setTurns(page, { status: 503, body: convFail('timeout') }, ok200(turnOk(TURN_LONG, 3)))
+  await fillReply(page, 'Marta does it, and her sister on Fridays.')
+  await click(page, '.composer .btn-primary')
+  await waitFor(page, 'window.__cc.state.turn.status === "failed"', { timeout: 5000 })
+  await sleep(100)
+  d = await convDom(page)
+  await shotAudit('followup-failed')
+  verdict(vp, 'conv-followup-failed', /Your answer is kept/.test(d.error || '') && d.retry && /Marta does it/.test(d.answer || '') && !d.technical, JSON.stringify({ error: d.error, retry: d.retry, answer: (d.answer || '').slice(0, 30) }))
+  await clickText(page, 'Try again')
+  await waitFor(page, '!window.__cc.state.busy && window.__cc.state.ctx.conversation.turns.length === 5', { timeout: 6000 })
+  await sleep(150)
+  d = await convDom(page)
+  await shotAudit('followup-long')
+  verdict(vp, 'conv-followup-long-intact', whole(d.question, TURN_LONG.question) && (d.reflectionPager || d.questionPager || (d.reflection === TURN_LONG.reflection && d.question === TURN_LONG.question) || (tiny && vp.width < 560)), JSON.stringify({ rp: d.reflectionPager, qp: d.questionPager }))
+  await click(page, '.conv-history')
+  await sleep(150)
+  await shotAudit('exchange-multi')
+  await evaluate(page, 'window.__cc.actions.closeOverlay(); true')
+  await sleep(60)
+
+  // 2b. The keyboard alone is enough: type, Ctrl+Enter sends and the reply arrives.
   await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) })
   await evaluate(page, 'document.querySelector("#reply").focus(); true')
   await cdpType(page, 'Mostly that nobody retypes anything.')
   await key(page, 'Enter', { modifiers: 2 })
-  await sleep(150)
-  const sentByKeyboard = await evaluate(page, 'window.__cc.state.ctx.conversation.turns.length === 2 && !document.querySelector("#reply")')
-  verdict(vp, 'conv-keyboard-send', sentByKeyboard, 'Ctrl+Enter from the field records the answer')
+  await waitFor(page, 'window.__cc.state.ctx.conversation.turns.length === 3 && !window.__cc.state.busy', { timeout: 6000 })
+  const sentByKeyboard = await evaluate(page, '!!document.querySelector("#reply") && window.__cc.state.drafts.reply === ""')
+  verdict(vp, 'conv-keyboard-send', sentByKeyboard, 'Ctrl+Enter from the field sends the answer; the next question is ready')
   await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) })
   await fillReply(page, LONG)
   await sleep(80)
@@ -650,6 +734,113 @@ async function conversationScenarios(page, vp) {
     d = await evaluate(page, 'document.querySelector(".gate-word") && document.querySelector(".gate-word").textContent')
     verdict(vp, `conv-${label}-no-model`, c.conv === 0 && d === body.decision, JSON.stringify({ conv: c.conv, shown: d }))
   }
+
+  // 10. The purpose, stated: it is the page, with one tap to confirm and one to say what to change. Corrected,
+  // the revised statement comes back; confirmed, it is the project's statement and Continue is the way on.
+  const stDom = () => evaluate(page, `JSON.stringify((() => {
+    const vis = e => { if (!e) return false; const r = e.getBoundingClientRect(); return getComputedStyle(e).display !== 'none' && r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth }
+    const btn = t => [...document.querySelectorAll('#app button')].find(b => b.textContent.trim().startsWith(t))
+    const st = document.querySelector('.conv-statement')
+    return {
+      statement: st ? st.textContent : null,
+      statementPager: !!document.querySelector('.conv-stated .paged-pager .pager'),
+      confirm: vis(btn('That’s right')),
+      change: vis(btn('Change something')),
+      cont: vis(btn('Continue')),
+      keep: vis(btn('Keep this statement')),
+      send: vis(document.querySelector('.composer .btn-primary')),
+      composer: !!document.querySelector('#reply'),
+      heading: (document.querySelector('#q') || {}).textContent,
+      note: (document.querySelector('.conv-notice') || {}).textContent,
+      technical: /simulated|prototype|reply written by an ai model/i.test(document.querySelector('.conv') ? document.querySelector('.conv').textContent : ''),
+      error: (document.querySelector('.conv .error') || {}).textContent,
+    }
+  })())`).then(JSON.parse)
+  for (const [label, st] of [['statement', TURN_STATEMENT], ['statement-long', TURN_STATEMENT_LONG]]) {
+    await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) }, { turns: [ok200(turnOk(st))] })
+    await fillReply(page, 'Marta retypes them every evening.')
+    await click(page, '.composer .btn-primary')
+    await waitFor(page, 'window.__cc.state.ctx.conversation.turns.length === 3 && !window.__cc.state.busy', { timeout: 6000 })
+    await sleep(150)
+    let s = await stDom()
+    await shotAudit(label)
+    verdict(vp, `conv-${label}-shown`, whole(s.statement, st.statement) && (s.statement === st.statement || s.statementPager) && s.confirm && s.change && !s.composer && !s.technical, JSON.stringify({ confirm: s.confirm, change: s.change, composer: s.composer, pager: s.statementPager, len: (s.statement || '').length }))
+    // Change something: the field appears with what is being changed still in view, and Cancel returns.
+    await clickText(page, 'Change something')
+    await sleep(120)
+    s = await stDom()
+    await shotAudit(`${label}-correcting`)
+    verdict(vp, `conv-${label}-correcting`, s.composer && s.send && !!s.statement && !s.confirm, JSON.stringify({ composer: s.composer, send: s.send, statement: (s.statement || '').slice(0, 20), confirm: s.confirm }))
+    await fillReply(page, LONG)
+    await sleep(120)
+    await shotAudit(`${label}-correcting-long`)
+    await clickText(page, 'Cancel')
+    await sleep(100)
+    s = await stDom()
+    verdict(vp, `conv-${label}-cancel`, s.confirm && !s.composer, JSON.stringify({ confirm: s.confirm, composer: s.composer }))
+    await clickText(page, 'Change something')
+    await sleep(100)
+    await setTurns(page, ok200(turnOk({ ...TURN_STATEMENT, statement: 'Orders that arrive over WhatsApp should reach the kitchen without Marta or her sister retyping them, so that none are lost.' }, 3)))
+    await fillReply(page, 'It is Marta and her sister, not only Marta.')
+    await click(page, '.composer .btn-primary')
+    await waitFor(page, 'window.__cc.state.ctx.conversation.turns.length === 5 && !window.__cc.state.busy', { timeout: 6000 })
+    await sleep(150)
+    c = await counts(page)
+    s = await stDom()
+    await shotAudit(`${label}-revised`)
+    const lastKinds = c.lastTurn.turns.map(t => t.kind).join(',')
+    verdict(vp, `conv-${label}-revised`, /her sister/.test(s.statement || '') && s.confirm && lastKinds === 'opening,reply,statement,reply' && c.lastTurn.turns[3].text === 'It is Marta and her sister, not only Marta.', JSON.stringify({ kinds: lastKinds, shown: (s.statement || '').slice(0, 40) }))
+    // Confirm: complete. The statement is the project's, and the one way on is Continue.
+    await clickText(page, 'That’s right')
+    await sleep(150)
+    s = await stDom()
+    await shotAudit(`${label}-confirmed`)
+    const confirmedState = await evaluate(page, 'JSON.stringify({ stmt: window.__cc.state.ctx.statement && window.__cc.state.ctx.statement.text, source: window.__cc.state.ctx.statement && window.__cc.state.ctx.statement.source, stage: window.__cc.state.stage })').then(JSON.parse)
+    verdict(vp, `conv-${label}-confirmed`, s.cont && !s.confirm && !s.composer && /her sister/.test(confirmedState.stmt || '') && confirmedState.source === 'conversation' && /simulated/i.test(s.note || ''), JSON.stringify({ cont: s.cont, state: confirmedState, note: (s.note || '').slice(0, 40) }))
+    // Reloaded, it is still confirmed; Continue goes on into the (simulated) handoff and Back returns here.
+    await navigate(page, `${BASE}/?fast`)
+    await waitFor(page, 'window.__cc && window.__cc.state.stage === "conversation"')
+    s = await stDom()
+    verdict(vp, `conv-${label}-reload`, s.cont && /her sister/.test(s.statement || '' ) || s.statementPager, JSON.stringify({ cont: s.cont, pager: s.statementPager }))
+    await clickText(page, 'Continue')
+    await settle(page, 's.stage === "continue"')
+    await sleep(100)
+    await shotAudit(`${label}-continue`)
+    await evaluate(page, 'window.__cc.actions.back(); true')
+    await settle(page, 's.stage === "conversation"')
+    s = await stDom()
+    verdict(vp, `conv-${label}-back`, s.cont, 'Back from Continue returns to the confirmed purpose')
+  }
+
+  // 10b. The conversation reached its length while a correction was waiting: the statement can be kept as it stands.
+  await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) }, { turns: [ok200(turnOk(TURN_STATEMENT))] })
+  await fillReply(page, 'Marta retypes them every evening.')
+  await click(page, '.composer .btn-primary')
+  await waitFor(page, 'window.__cc.state.ctx.conversation.turns.length === 3 && !window.__cc.state.busy', { timeout: 6000 })
+  await setTurns(page, { status: 409, body: convFail('limit') })
+  await clickText(page, 'Change something')
+  await sleep(100)
+  await fillReply(page, 'One more change, please.')
+  await click(page, '.composer .btn-primary')
+  await waitFor(page, 'window.__cc.state.turn.status === "failed"', { timeout: 5000 })
+  await sleep(100)
+  let lim = await stDom()
+  await shotAudit('limit')
+  verdict(vp, 'conv-limit', lim.keep && /length it can have/.test(lim.error || '') && !lim.composer, JSON.stringify({ keep: lim.keep, error: lim.error }))
+  await clickText(page, 'Keep this statement')
+  await sleep(100)
+  lim = await stDom()
+  verdict(vp, 'conv-limit-keep', lim.cont, 'the statement as it stands is kept')
+
+  // 10c. A reply in Spanish is displayed as written.
+  await beginConversation(page, 'Quiero que mis clientes reserven sin llamar al local', { status: 200, body: convOk(SPANISH_OPENING) }, { turns: [ok200(turnOk(TURN_SPANISH))] })
+  await fillReply(page, 'Mi esposa atiende el teléfono.')
+  await click(page, '.composer .btn-primary')
+  await waitFor(page, 'window.__cc.state.ctx.conversation.turns.length === 3 && !window.__cc.state.busy', { timeout: 6000 })
+  await sleep(100)
+  d = await convDom(page)
+  await shotAudit('spanish-followup')
+  verdict(vp, 'conv-spanish-followup', whole(d.question, TURN_SPANISH.question), d.question)
 }
 
 async function fullJourney(page, vp) {

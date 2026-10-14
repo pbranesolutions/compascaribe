@@ -28,6 +28,37 @@ export function messageBody(opening = GOOD, { stopReason = 'end_turn', model = '
   }
 }
 
+/** What the agent returns for a follow-up: how it read the answer, what it now understands, and one more question. */
+export const GOOD_TURN = Object.freeze({
+  reading: 'answers',
+  understanding: {
+    purpose: 'Orders that arrive over WhatsApp reach the notebook without anyone retyping them.',
+    confirmed: ['Orders arrive over WhatsApp', 'Someone retypes them into a notebook', 'Orders get lost'],
+    inferred: ['The person who retypes them is the one who loses time'],
+    open: ['Who retypes the orders', 'What a lost order costs'],
+    coverage: { problem: 'clear', beneficiaries: 'partial', outcome: 'partial', value: 'unknown', success: 'unknown' },
+  },
+  move: 'ask',
+  reflection: 'Lost orders come from the retyping, and Marta is the one who does it every evening.',
+  question: 'What happened the last time an order was lost?',
+  statement: '',
+})
+
+/** The same, when the purpose is understood and stated for the visitor to confirm or correct. */
+export const GOOD_STATEMENT = Object.freeze({
+  ...GOOD_TURN,
+  move: 'statement',
+  reflection: '',
+  question: 'Does this capture what the project is for, or is there something you would change?',
+  statement: 'Orders that arrive over WhatsApp should reach the kitchen without Marta retyping them each evening, so that none are lost and she is free to prepare the next day.',
+})
+
+/** The history a browser sends for the first follow-up: the opening, then the visitor's answer. */
+export const HISTORY = Object.freeze([
+  { role: 'compas', kind: 'opening', reflection: GOOD.reflection, question: GOOD.question, analysis: { describes: GOOD.describes, uncertainty: GOOD.uncertainty, explores: GOOD.explores } },
+  { role: 'visitor', kind: 'reply', text: 'Marta retypes them every evening, and some get lost.' },
+])
+
 export function header(init, name) {
   const h = init?.headers
   if (!h) return null

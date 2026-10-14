@@ -6,7 +6,16 @@
 // understanding behind it, so Decision Channel starts from the same facts the
 // visitor already confirmed.
 
+import { latestUnderstanding, turnsOf } from '../context.js'
+
 export const HANDOFF_SCHEMA = 'compascaribe.handoff/1'
+
+/** The live conversation, in order, as it was said: what Decision Channel starts from besides the statement. */
+function conversationRecord(ctx) {
+  return turnsOf(ctx).map(t => (t.role === 'compas'
+    ? { role: 'compas', kind: t.kind, reflection: t.reflection || null, question: t.question || null, statement: t.statement || null }
+    : { role: 'visitor', kind: t.kind, text: t.text || null }))
+}
 
 /**
  * @param {import('../context.js').ProjectContext} ctx
@@ -47,6 +56,8 @@ export function buildHandoffPayload(ctx, extras = {}) {
       originalInput: ctx.submission?.text || null,
       clarifications: ctx.clarifications.map(c => c.text),
       answers,
+      // The conversation that produced the statement, and what the agent had understood by its end.
+      conversation: { turns: conversationRecord(ctx), understanding: latestUnderstanding(ctx) },
       statementHistory: ctx.statementHistory.map(s => ({ version: s.version, source: s.source, reason: s.reason, text: s.text })),
     },
     qualification: ctx.qualification ? { tier: ctx.qualification.tier, label: ctx.qualification.label } : null,
@@ -60,6 +71,7 @@ export function summarizePayload(payload) {
   lines.push(['Statement', payload.project.statement || '—'])
   lines.push(['Original input', payload.discovery.originalInput || '—'])
   for (const a of payload.discovery.answers) lines.push([a.focus, a.answer])
+  for (const t of payload.discovery.conversation?.turns || []) if (t.role === 'visitor' && t.kind === 'reply') lines.push(['Answer', t.text])
   lines.push(['Statement versions', String(payload.discovery.statementHistory.length)])
   return lines
 }

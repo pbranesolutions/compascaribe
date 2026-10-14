@@ -50,20 +50,35 @@ export function signingSecret(env = {}) {
 const importKey = secret => crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
 
 /**
- * @param {{ text: string, secret: string, gateModel?: string|null, ttlMs: number, now?: () => number }} input
+ * What a qualification says about how far its conversation has come. A fresh
+ * one from the gate has `turn` 0. Each reply the model writes comes back with
+ * a renewed qualification (same id, same words, `turn` one higher), so the
+ * count that bounds a conversation's cost is signed, not claimed by the browser.
+ * `startedAt` carries the first qualification's time across renewals, which is
+ * what caps a conversation's total lifetime.
+ *
+ * @param {{
+ *   text: string, secret: string, gateModel?: string|null, ttlMs: number, now?: () => number,
+ *   id?: string|null, turn?: number, startedAt?: number|null, maxLifetimeMs?: number|null,
+ * }} input
  * @returns {Promise<{ token: string, expiresAt: number } | null>}  null when there is no secret to sign with
  */
-export async function issueQualification({ text, secret, gateModel = null, ttlMs, now = Date.now }) {
+export async function issueQualification({ text, secret, gateModel = null, ttlMs, now = Date.now, id = null, turn = 0, startedAt = null, maxLifetimeMs = null }) {
   if (!secret) return null
   const issuedAt = now()
+  const began = typeof startedAt === 'number' ? startedAt : issuedAt
+  let expires = issuedAt + ttlMs
+  if (typeof maxLifetimeMs === 'number') expires = Math.min(expires, began + maxLifetimeMs)
   const payload = {
     s: QUALIFICATION_SCHEMA,
     d: 'PROCEED',
     h: await sha256Hex(text),
     g: gateModel,
     i: issuedAt,
-    e: issuedAt + ttlMs,
-    j: crypto.randomUUID(),
+    e: expires,
+    j: id || crypto.randomUUID(),
+    n: turn,
+    x: began,
   }
   const body = toBase64Url(encoder.encode(JSON.stringify(payload)))
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', await importKey(secret), encoder.encode(body)))
@@ -72,7 +87,7 @@ export async function issueQualification({ text, secret, gateModel = null, ttlMs
 
 /**
  * @param {{ token: unknown, text: string, secret: string, now?: () => number }} input
- * @returns {Promise<{ ok: true, id: string, expiresAt: number } | { ok: false, reason: 'missing'|'malformed'|'signature'|'expired'|'text' }>}
+ * @returns {Promise<{ ok: true, id: string, expiresAt: number, turn: number, startedAt: number, gateModel: string|null } | { ok: false, reason: 'missing'|'malformed'|'signature'|'expired'|'text' }>}
  */
 export async function verifyQualification({ token, text, secret, now = Date.now }) {
   if (typeof token !== 'string' || !token || !secret) return { ok: false, reason: 'missing' }
@@ -97,5 +112,7 @@ export async function verifyQualification({ token, text, secret, now = Date.now 
   if (!claims || claims.s !== QUALIFICATION_SCHEMA || claims.d !== 'PROCEED' || typeof claims.j !== 'string' || typeof claims.e !== 'number') return { ok: false, reason: 'malformed' }
   if (now() >= claims.e) return { ok: false, reason: 'expired' }
   if (claims.h !== (await sha256Hex(text))) return { ok: false, reason: 'text' }
-  return { ok: true, id: claims.j, expiresAt: claims.e }
+  const turn = Number.isInteger(claims.n) && claims.n >= 0 ? claims.n : 0
+  const startedAt = typeof claims.x === 'number' ? claims.x : typeof claims.i === 'number' ? claims.i : claims.e
+  return { ok: true, id: claims.j, expiresAt: claims.e, turn, startedAt, gateModel: typeof claims.g === 'string' ? claims.g : null }
 }

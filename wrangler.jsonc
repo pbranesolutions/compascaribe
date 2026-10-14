@@ -23,8 +23,9 @@
     "JEV_MODEL": "jev-latest",
     "CONVERSATION_MODEL": "claude-sonnet-5-5"
   },
-  // Abuse and cost protection per visitor IP: 10 classifications and 6 generated
-  // replies per minute (a reply is a billed model request).
+  // Abuse and cost protection per visitor IP: 10 classifications and 8 generated
+  // replies per minute (a reply is a billed model request; a person answering
+  // takes longer than 8 seconds a turn, so a conversation never meets this).
   "ratelimits": [
     {
       "name": "GATE_LIMITER",
@@ -34,7 +35,7 @@
     {
       "name": "CONVERSATION_LIMITER",
       "namespace_id": "1002",
-      "simple": { "limit": 6, "period": 60 }
+      "simple": { "limit": 8, "period": 60 }
     }
   ],
   "routes": [

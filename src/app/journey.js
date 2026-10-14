@@ -3,21 +3,26 @@
 //
 // Entry:   welcome → gate → (PROCEED → conversation | BLOCK, UNAVAILABLE → stay at gate).
 //          Begin runs the live Jev gate. A PROCEED that carries the server's
-//          qualification opens the first conversation: one live model request,
-//          after which the visitor can answer. Anything else stays at the
-//          diagnostic, which displays the decision and routes nothing.
-//          Everything below is the simulated downstream flow, kept intact and
-//          currently unreachable from Begin; it is the work the conversation will feed.
+//          qualification opens the conversation: a live model request for the
+//          first reply, then one for every answer the visitor sends, until the
+//          project's purpose is stated and the visitor confirms or corrects it.
+//          Anything else stays at the diagnostic, which displays the decision
+//          and routes nothing.
+// Confirmed: the stated purpose becomes the project statement and the visitor
+//          continues into the (simulated) handoff. The discovery stages below
+//          are the earlier simulated flow, kept intact and unreachable from Begin.
 // Stages:  welcome → qualifying → (declined | uncertain | discovery)
 //          discovery → composing → statement ⇄ refine → continue → handoff → done
 // Overlays (review, words, drafts, notes, record) sit on top of any
 // stage and never change the stage.
 
 import {
-  allAnswered, CONTEXT_VERSION, createContext, latestOpening, latestReply, LIMITS, nextUnanswered, withClarification,
-  withExchanges, withHandoff, withOpening, withoutReply, withQualification, withReply, withStatement, withSubmission,
+  allAnswered, CONTEXT_VERSION, createContext, isConfirmed, latestCompas, latestOpening, latestReply, latestUnderstanding, LIMITS, nextUnanswered,
+  openStatement, turnsOf, withClarification, withConfirmation, withExchanges, withHandoff, withOpening, withoutReply, withQualification,
+  withReply, withStatement, withSubmission, withTurn,
 } from '../domain/context.js'
 import { createConversationClient } from '../domain/conversation/client.js'
+import { wireTurns } from '../domain/conversation/history.js'
 import { createProvider } from '../domain/discovery/provider.js'
 import { createGateClient } from '../domain/gate/client.js'
 import { buildHandoffPayload } from '../domain/handoff/payload.js'
@@ -60,10 +65,14 @@ function initialState(ctx = createContext()) {
     parts: null,
     sketch: null,
     gate: null,
-    // The server's qualification for the words being answered; held in memory only, spent by the opening.
+    // The server's qualification for the conversation, renewed by every reply; held in memory only.
     qualification: null,
     // The first model reply: idle until a PROCEED, generating while the request is out, ready, or failed (kind kept).
     opening: { status: 'idle', failure: null },
+    // The reply to the visitor's latest answer: idle, generating while the request is out, or failed (kind kept).
+    turn: { status: 'idle', failure: null },
+    // The visitor is writing a correction to the stated purpose.
+    correcting: false,
     receipt: null,
     payload: null,
     resumed: false,
@@ -150,13 +159,16 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
       if (stage === 'gate') stage = 'welcome'
       // The conversation resumes only if the model already answered; a reply in flight is never replayed.
       if (stage === 'conversation' && !latestOpening(ctx)) stage = 'welcome'
+      // A purpose confirmed in conversation has no discovery behind it: its stages are the conversation and what follows it.
+      const conversational = Boolean(ctx.statement && ctx.statement.source === 'conversation' && latestOpening(ctx))
+      if (conversational && ['statement', 'refine'].includes(stage)) stage = 'conversation'
       if (stage === 'qualifying') stage = ctx.exchanges.length ? 'discovery' : 'welcome'
       if (stage === 'composing') {
         stage = ctx.statement ? 'statement' : ctx.exchanges.length ? 'discovery' : 'welcome'
         if (stage === 'discovery') stepIndex = lastStep
       }
       if (stage === 'handoff') stage = ctx.statement ? 'continue' : 'welcome'
-      if (['discovery', 'statement', 'refine', 'continue', 'done'].includes(stage) && !ctx.exchanges.length) stage = 'welcome'
+      if (['discovery', 'statement', 'refine', 'continue', 'done'].includes(stage) && !ctx.exchanges.length && !conversational) stage = 'welcome'
       if (['statement', 'refine', 'continue', 'done'].includes(stage) && !ctx.statement) stage = 'discovery'
       if (stage === 'done' && !saved.receipt) stage = 'continue'
       const ui = stage === 'discovery' ? uiForStep(ctx, stepIndex) : { stepIndex, selection: null, ownWordsOpen: false, ownWords: '' }
@@ -173,6 +185,8 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
         payload: receipt ? buildHandoffPayload(ctx, { parts }) : null,
         resumed: true,
         opening: { status: stage === 'conversation' ? 'ready' : 'idle', failure: null },
+        // An answer was written but its reply never arrived (the page closed first): it is kept, and asking again is one tap.
+        turn: stage === 'conversation' && latestReply(ctx) ? { status: 'failed', failure: 'interrupted' } : { status: 'idle', failure: null },
         drafts: { ...initialState().drafts, welcome: stage === 'welcome' ? ctx.submission.text : '', ownWords: ui.ownWords, edit: '' },
       }
       next.sketch = sketchFor(ctx)
@@ -215,6 +229,11 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
 
   // --- transitions -------------------------------------------------------
 
+  /** The project's statement is the purpose confirmed in the conversation, not one the simulated discovery wrote. */
+  function conversational() {
+    return Boolean(state.ctx.statement && state.ctx.statement.source === 'conversation' && latestOpening(state.ctx))
+  }
+
   function go(stage, extra = {}, { replace } = {}) {
     const forward = ORDER.indexOf(stage) > ORDER.indexOf(state.stage) || (stage === 'discovery' && state.stage === 'discovery' && (extra.stepIndex ?? state.stepIndex) > state.stepIndex)
     set({ stage, overlay: null, overlayPage: 0, overlayReturn: null, error: null, asideOpen: false, editorOpen: false, ...extra })
@@ -243,12 +262,15 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
   async function runGate({ recheck = false } = {}) {
     await guarded(recheck ? 'Preparing a reply' : 'Classifying', recheck ? 'conversation' : 'welcome', async (alive) => {
       const text = state.ctx.submission.text
-      if (recheck) set({ opening: { status: 'generating', failure: null } })
+      // A re-check happens mid-conversation too: the reply being waited for is the opening or the next turn.
+      const midway = recheck && Boolean(latestOpening(state.ctx))
+      const waiting = status => (midway ? { turn: status } : { opening: status })
+      if (recheck) set(waiting({ status: 'generating', failure: null }))
       let outcome
       try {
         outcome = await gate.classify(text)
       } catch (err) {
-        if (recheck) return set({ opening: { status: 'failed', failure: 'network' } })
+        if (recheck) return set(waiting({ status: 'failed', failure: 'network' }))
         throw err
       }
       if (!alive()) return
@@ -259,16 +281,23 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
         return go('welcome', { drafts: { ...state.drafts, welcome: text }, error: { message }, gate: null, opening: { status: 'idle', failure: null } }, { replace: true })
       }
       const { result } = outcome
+      // A gate that could not answer is not a verdict on words that already passed it: the conversation stays and the visitor can try again.
+      if (recheck && result.decision === 'UNAVAILABLE') return set({ gate: result, ...waiting({ status: 'failed', failure: 'network' }) })
       // Only a PROCEED that came with the server's qualification can lead to a model request.
       const qualification = result.decision === 'PROCEED' ? outcome.qualification || null : null
       set({ gate: result, qualification, notes: addNote({ stage: 'gate', live: true, decision: result.decision }) })
       if (qualification) {
         if (state.stage !== 'conversation') go('conversation', { drafts: { ...state.drafts, reply: '' } })
-        return openConversation(alive)
+        return continueConversation(alive)
       }
-      set({ opening: { status: 'idle', failure: null } })
+      set({ opening: { status: 'idle', failure: null }, turn: { status: 'idle', failure: null } })
       if (state.stage !== 'gate') go('gate', {}, { replace: true })
     })
+  }
+
+  /** What the conversation is waiting for: the answer to the visitor's latest reply, or (before any) the opening. */
+  function continueConversation(alive) {
+    return latestOpening(state.ctx) && latestReply(state.ctx) ? requestTurn(alive) : openConversation(alive)
   }
 
   /**
@@ -287,12 +316,56 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
       const ctx = withOpening(state.ctx, out.opening, { model: out.model, latencyMs: out.latencyMs, usage: out.usage })
       return set({
         ctx,
-        qualification: null,
+        // The conversation continues under the qualification that came back with the reply.
+        qualification: out.qualification || null,
         opening: { status: 'ready', failure: null },
+        turn: { status: 'idle', failure: null },
         notes: addNote({ stage: 'conversation', live: true, model: out.model, latencyMs: out.latencyMs, usage: out.usage }),
       })
     }
     set({ opening: { status: 'failed', failure: out.ok === false ? out.failure : 'malformed' } })
+  }
+
+  /**
+   * The model's reply to the visitor's latest answer. As with the opening it
+   * does not throw: a failure is recorded as the turn's status, the answer stays
+   * in the record, and the visitor can try again or edit it. Nothing is
+   * requested without an answer waiting for one.
+   */
+  async function requestTurn(alive) {
+    const ctx = state.ctx
+    if (!latestReply(ctx) || !latestOpening(ctx)) return
+    const q = state.qualification
+    if (!q || q.expiresAt - Date.now() < 5000) {
+      // The conversation's qualification ran out (a long pause) or never came: the same words are checked again, then the reply is requested.
+      return set({ turn: { status: 'failed', failure: 'qualification' } })
+    }
+    set({ turn: { status: 'generating', failure: null } })
+    let out
+    try {
+      out = await conversation.next({
+        text: ctx.submission.text,
+        qualification: q.token,
+        turns: wireTurns(turnsOf(ctx)),
+        understanding: latestUnderstanding(ctx),
+      })
+    } catch {
+      // The client does not throw; if a stand-in or a bug does, the answer is still kept and trying again is still there.
+      out = { ok: false, failure: 'provider_error' }
+    }
+    if (!alive()) return
+    if (out.ok && out.kind === 'turn') {
+      const next = withTurn(state.ctx, out.turn, { model: out.model, latencyMs: out.latencyMs, usage: out.usage })
+      return set({
+        ctx: next,
+        qualification: out.qualification || null,
+        turn: { status: 'idle', failure: null },
+        correcting: false,
+        drafts: { ...state.drafts, reply: '' },
+        notes: addNote({ stage: 'conversation', live: true, model: out.model, latencyMs: out.latencyMs, usage: out.usage, reading: out.turn.reading, move: out.turn.move, replies: out.progress?.replies ?? null }),
+      })
+    }
+    set({ turn: { status: 'failed', failure: out.ok === false ? out.failure : 'malformed' } })
   }
 
   async function qualifyAndRoute() {
@@ -338,10 +411,12 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
       if (text.length > LIMITS.submission) return set({ error: { message: `That is more than fits here (${LIMITS.submission} characters). Trim it a little; detail comes next.` } })
       // The same words already have their opening in this tab (Back, then Begin again): show it, request nothing.
       if (state.ctx.submission?.text === text && latestOpening(state.ctx)) {
-        return go('conversation', { gate: null, qualification: null, opening: { status: 'ready', failure: null }, drafts: { ...state.drafts, reply: '' } })
+        // The conversation as it was: an answer that never got its reply is still there to send again.
+        const turn = latestReply(state.ctx) ? { status: 'failed', failure: 'interrupted' } : { status: 'idle', failure: null }
+        return go('conversation', { gate: null, opening: { status: 'ready', failure: null }, turn, correcting: false, drafts: { ...state.drafts, reply: '' } })
       }
       const ctx = withSubmission(createContext(), text)
-      set({ ctx, stepIndex: 0, selection: null, ownWordsOpen: false, parts: null, receipt: null, payload: null, sketch: null, gate: null, qualification: null, opening: { status: 'idle', failure: null }, resumed: false, returnTo: null })
+      set({ ctx, stepIndex: 0, selection: null, ownWordsOpen: false, parts: null, receipt: null, payload: null, sketch: null, gate: null, qualification: null, opening: { status: 'idle', failure: null }, turn: { status: 'idle', failure: null }, correcting: false, resumed: false, returnTo: null })
       go('gate')
       await runGate()
     },
@@ -370,20 +445,70 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
       }
     },
 
-    /** The visitor's answer to the opening. Kept in the record; nothing is sent anywhere yet. */
-    sendReply() {
-      if (state.stage !== 'conversation' || !latestOpening(state.ctx) || latestReply(state.ctx)) return
+    /**
+     * The visitor's answer to what Compás Caribe last said (a question, or the
+     * statement of the purpose it proposed). It is recorded, then one model
+     * request writes the next reply. If that fails the answer stays in the
+     * record, and trying again or editing it is one tap.
+     */
+    async sendReply() {
+      if (state.stage !== 'conversation' || state.busy) return
+      const asked = latestCompas(state.ctx)
+      if (!asked || latestReply(state.ctx) || isConfirmed(state.ctx)) return
       const text = state.drafts.reply.trim()
       if (!text) return set({ error: { message: 'Write a few words first.' } })
-      if (text.length > LIMITS.reply) return set({ error: { message: `Keep it under ${LIMITS.reply} characters for now; there is room for detail later.` } })
-      set({ ctx: withReply(state.ctx, text), drafts: { ...state.drafts, reply: '' }, error: null })
+      if (text.length > LIMITS.reply) return set({ error: { message: `Keep it under ${LIMITS.reply} characters; there is room for detail later.` } })
+      set({ ctx: withReply(state.ctx, text), drafts: { ...state.drafts, reply: '' }, error: null, turn: { status: 'idle', failure: null } })
+      await actions.retryTurn()
+    },
+
+    /**
+     * Ask for the reply to the visitor's latest answer: the first time (Send),
+     * or again after a failure. While the qualification is good that is one
+     * model request; once it has run out the words are checked again first.
+     */
+    async retryTurn() {
+      if (state.busy || state.stage !== 'conversation' || !latestReply(state.ctx) || !latestOpening(state.ctx)) return
+      const q = state.qualification
+      const good = q && q.expiresAt - Date.now() > 5000 && state.turn.failure !== 'qualification'
+      if (good) {
+        await guarded('Preparing a reply', 'conversation', alive => requestTurn(alive))
+      } else {
+        set({ gate: null })
+        await runGate({ recheck: true })
+      }
+    },
+
+    /** The right retry for wherever the conversation is waiting. */
+    async retryConversation() {
+      if (latestOpening(state.ctx)) return actions.retryTurn()
+      return actions.retryOpening()
     },
 
     /** Take the answer back into the field to change it. */
     editReply() {
       const reply = latestReply(state.ctx)
-      if (state.stage !== 'conversation' || !reply) return
-      set({ ctx: withoutReply(state.ctx), drafts: { ...state.drafts, reply: reply.text }, error: null })
+      if (state.stage !== 'conversation' || state.busy || !reply) return
+      set({ ctx: withoutReply(state.ctx), drafts: { ...state.drafts, reply: reply.text }, error: null, turn: { status: 'idle', failure: null } })
+    },
+
+    /** The visitor says the stated purpose is right. It becomes the project statement and the conversation is complete. */
+    confirmStatement() {
+      if (state.stage !== 'conversation' || state.busy || isConfirmed(state.ctx)) return
+      const ctx = withConfirmation(state.ctx)
+      if (ctx === state.ctx) return
+      set({ ctx, correcting: false, error: null, turn: { status: 'idle', failure: null }, drafts: { ...state.drafts, reply: '' } })
+    },
+
+    /** Start writing a correction to the stated purpose. */
+    openCorrection() {
+      if (state.stage !== 'conversation' || state.busy || !openStatement(state.ctx)) return
+      set({ correcting: true, error: null })
+    },
+
+    closeCorrection() {
+      if (!state.correcting) return
+      set({ correcting: false, error: null, drafts: { ...state.drafts, reply: '' } })
     },
 
     async clarify() {
@@ -456,7 +581,7 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
     /** Jump to a completed stage from the route band. */
     jump(stage) {
       if (state.busy) return
-      if (stage === 'statement' && state.ctx.statement) return go('statement', {}, { replace: true })
+      if (stage === 'statement' && state.ctx.statement) return go(conversational() ? 'conversation' : 'statement', {}, { replace: true })
       if (stage === 'discovery' && state.ctx.exchanges.length) return actions.revisit(state.ctx.exchanges.length - 1)
       if (stage === 'continue' && state.ctx.statement) return go('continue', {}, { replace: true })
     },
@@ -470,8 +595,9 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
       }
       if (s === 'conversation') {
         // Leaving cancels a reply in flight; a reply already written is kept and reused if the same words come back.
+        // The qualification is kept: the same words, then Begin, continue the conversation without being checked again.
         cancel()
-        return go('welcome', { drafts: { ...state.drafts, welcome: state.ctx.submission?.text || state.drafts.welcome }, gate: null, qualification: null, opening: { status: 'idle', failure: null } }, { replace: true })
+        return go('welcome', { drafts: { ...state.drafts, welcome: state.ctx.submission?.text || state.drafts.welcome }, gate: null, opening: { status: 'idle', failure: null }, turn: { status: 'idle', failure: null }, correcting: false }, { replace: true })
       }
       if (s === 'qualifying') {
         cancel()
@@ -488,11 +614,13 @@ export function createJourney({ storage = safeStorage(), provider = createProvid
         return go('welcome', { drafts: { ...state.drafts, welcome: state.ctx.submission?.text || state.drafts.welcome } }, { replace: true })
       }
       if (s === 'statement') {
+        if (conversational()) return go('conversation', {}, { replace: true })
         if (state.ctx.exchanges.length) return actions.revisit(state.ctx.exchanges.length - 1)
         return go('welcome', {}, { replace: true })
       }
       if (s === 'refine') return go('statement', {}, { replace: true })
-      if (s === 'continue') return go('statement', {}, { replace: true })
+      // A purpose confirmed in conversation is shown where it was confirmed.
+      if (s === 'continue') return go(conversational() ? 'conversation' : 'statement', {}, { replace: true })
       if (s === 'handoff' || s === 'done') return go('continue', {}, { replace: true })
       if (s === 'declined' || s === 'uncertain') return go('welcome', { drafts: { ...state.drafts, welcome: state.ctx.submission?.text || '' } }, { replace: true })
     },

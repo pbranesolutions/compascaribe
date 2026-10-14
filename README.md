@@ -38,10 +38,13 @@ node tests/browser/run.mjs --url http://localhost:5173   # in another
 The runner needs a local Chrome or Edge (set `CHROME_PATH` otherwise). It writes
 screenshots and `report.json` to `tests/browser/shots/`.
 `--only <name>` limits it to viewports whose name contains the text, and `--conv`
-runs only the first-conversation scenarios. Those answer `/api/gate` and
-`/api/conversation` from envelopes injected into the page, so layouts, states and
-request counts are deterministic; the real-endpoint scenario follows the real
-conversation route too when the server is configured to qualify words.
+runs only the conversation scenarios (first reply, follow-ups, failure and
+recovery, the stated purpose, correction, confirmation, the length limit). Those
+answer `/api/gate` and `/api/conversation` from envelopes injected into the page,
+so layouts, states and request counts are deterministic; the real-endpoint
+scenario follows the real conversation route too when the server is configured
+to qualify words. Do not edit files under the dev server while it runs: Vite
+reloads the page mid-scenario.
 
 Useful URL flags: `?audit` logs an overflow audit after every render,
 `?diagnostics` shows the engineering detail the customer-facing conversation
@@ -55,7 +58,7 @@ harness against `http://localhost:5173`.
 Vanilla JavaScript modules, plain CSS, Vite 8. No framework. One Cloudflare
 Worker route (`POST /api/gate`) holds the TypeSafe AI key; everything else is
 static assets. A second route (`POST /api/conversation`) holds the Anthropic
-key and makes the one model request of the first exchange.
+key and makes one model request per reply of the conversation.
 
 ```
 src/
@@ -64,13 +67,15 @@ src/
   domain/
     context.js               ProjectContext: everything learned, pure updates, limits
     gate/                    the live Jev gate: questions, decision rules, Jev client, pipeline, browser client
-    conversation/            the first exchange:
+    conversation/            the conversation:
       prompt.js              conversational instructions (the agent's voice), wording only
-      schema.js              structured-output schema + server-side structure validation
-      qualification.js       signed proof that exact words passed the gate
-      opening.js             SERVER ONLY: the one Claude request (official SDK)
-      config.js              model, effort, token ceiling, timeout, attempts (server vars)
-      client.js              browser client for /api/conversation
+      schema.js              first-reply schema + validation; tone and one-question rules every reply shares
+      turn.js                later replies: schema, the agent's understanding, the statement, validation
+      history.js             the conversation as it travels: shape, bounds, repeat detection (browser + Worker)
+      qualification.js       signed proof that exact words passed the gate; renewed with every reply
+      opening.js             SERVER ONLY: the Claude requests (official SDK): first reply and later turns
+      config.js              model, effort, token ceilings, timeouts, reply budget (server vars)
+      client.js              browser client for /api/conversation (open, next)
     qualification/           (simulated, now dormant) lexicon classifier behind the discovery provider
     discovery/
       provider.js            the generative-AI boundary (qualify / open / answer / compose / refine)
@@ -84,7 +89,7 @@ src/
       transport.js           simulated transport (never claims a network call)
   ui/
     diagnostic.js            temporary Jev gate diagnostic (removable on its own)
-    conversation.js          the first exchange: words, reflection, question, answer field
+    conversation.js          the conversation: words, reflection, question, answer field, the stated purpose
     render.js                shell, focus, announcements, fitting, audit
     views.js                 one function per journey state + overlays
     components.js            top bar, understanding ply, strip, composer (folios), options, paged lists
@@ -95,15 +100,18 @@ src/
 worker/
   index.js                   Worker entry: routes /api/gate and /api/conversation, everything else is assets
   gate-handler.js            origin, size, rate limit, de-duplication, key handling, issues the qualification
-  conversation-handler.js    qualification check, rate limit, one model request, per-qualification ledger
+  conversation-handler.js    qualification check, signed reply budget, rate limit, one model request per reply, ledger
   http.js                    JSON responses and the per-visitor rate limiter both routes share
 tests/
   gate-*.test.js             decision rules, Jev client, pipeline, Worker, diagnostic (mocked)
   conversation-*.test.js     prompt, structure validation, model invocation (real SDK, doubled network),
                              qualification, Worker route, client, bundle boundary (mocked)
-  journey-conversation.test.js   the first exchange in the journey (mocked routes)
+  conversation-turn*.test.js later replies: validation, history, budget, retry, renewal (mocked)
+  journey-conversation.test.js   the conversation in the journey (mocked routes)
   live/gate.live.mjs         real Jev calls, run with: npm run test:live
-  live/conversation.live.mjs Jev then real Claude replies, run with: npm run test:live:conversation
+  live/conversation.live.mjs Jev then real Claude first replies, run with: npm run test:live:conversation
+  live/conversation-flow.live.mjs   whole conversations against simulated visitors and a judge, run with:
+                             npm run test:live:flow
   classifier.test.js, discovery.test.js, journey.test.js      node --test
   browser/cdp.mjs, browser/run.mjs           headless Chrome harness
 ```
@@ -121,7 +129,7 @@ tests/
 | Conversational instructions | `src/domain/conversation/prompt.js` | — (edit the wording here only) |
 | Model invocation | `src/domain/conversation/opening.js`, `worker/conversation-handler.js` | another model through `CONVERSATION_MODEL` |
 | Conversation state | `ProjectContext.conversation` (`src/domain/context.js`) | — |
-| First-exchange display | `src/ui/conversation.js` | — |
+| Conversation display | `src/ui/conversation.js` | — |
 | Generative discovery | `src/domain/discovery/provider.js` | a remote provider calling Claude |
 | Conversion and onboarding | `continue` view + journey | real onboarding when accounts exist |
 | Decision Channel handoff | `src/domain/handoff/*` | the Decision Channel intake API |
@@ -130,14 +138,17 @@ The UI never imports the simulated engine directly; it calls the provider.
 
 ## The journey
 
-`welcome → gate → conversation`. Begin runs the Jev gate. **PROCEED** (with
-the server's qualification) opens the first conversation; **BLOCK** and
-**UNAVAILABLE** stay at the diagnostic and never reach a model. The
-conversation ends at the visitor's first answer: it is recorded in
-`ctx.conversation` and kept in the browser, and no further reply is generated.
+`welcome → gate → conversation → continue → handoff → done`. Begin runs the Jev
+gate. **PROCEED** (with the server's qualification) opens the conversation;
+**BLOCK** and **UNAVAILABLE** stay at the diagnostic and never reach a model. In
+the conversation every answer the visitor sends gets a reply written by Claude
+from the whole conversation so far, until the project's purpose is understood and
+stated; the visitor confirms or corrects that statement, and a confirmed
+statement is the project's statement (`ctx.statement`, source `conversation`).
+*Continue* then goes into the simulated handoff.
 
-The simulated flow behind it is intact and covered by tests and the browser
-harness, but nothing routes into it yet:
+The earlier simulated discovery flow is intact and covered by tests and the
+browser harness, but nothing routes into it from Begin:
 `qualifying → (declined | uncertain | discovery) → composing → statement ⇄ refine → continue → handoff → done`
 
 Overlays (`review`, `words`, `drafts`, `notes`, `record`) sit on top of
@@ -201,86 +212,125 @@ The diagnostic (`src/ui/diagnostic.js`) renders the returned `GateResult`:
 decision, the three probabilities, each rule evaluated with the numbers it used,
 the model Jev reported, response time and token usage.
 
-## The first conversation
+## The conversation
 
 After a PROCEED the browser shows the conversation stage immediately (the
 visitor's words, exactly as written, and a quiet "Preparing a reply") and posts
-`{ text, qualification }` to `POST /api/conversation`.
+`{ text, qualification }` to `POST /api/conversation`. Each later answer posts
+`{ text, qualification, turns, understanding }`: the visitor's words, the
+qualification that came back with the last reply, the conversation so far and
+what the agent understood at the end of its last reply.
 
 **Only qualified words are generated on.** `/api/gate` signs a qualification
-(HMAC-SHA256 over the hash of the exact words, an expiry and a random id) when,
-and only when, Jev returned PROCEED. `/api/conversation` verifies signature,
-expiry and that the words are the same ones, or refuses with no model request.
-BLOCK and UNAVAILABLE never receive one. The signing key is
-`QUALIFICATION_SECRET` if set, otherwise derived (with a domain label) from
-`TYPESAFE_API_KEY`. If `ANTHROPIC_API_KEY` is not configured, or the route is
-switched off, no qualification is issued and PROCEED stays at the diagnostic.
+(HMAC-SHA256 over the hash of the exact words, an expiry, a random id, a reply
+count and a start time) when, and only when, Jev returned PROCEED.
+`/api/conversation` verifies signature, expiry and that the words are the same
+ones, or refuses with no model request. BLOCK and UNAVAILABLE never receive one.
+The signing key is `QUALIFICATION_SECRET` if set, otherwise derived (with a domain
+label) from `TYPESAFE_API_KEY`. If `ANTHROPIC_API_KEY` is not configured, or the
+route is switched off, no qualification is issued and PROCEED stays at the
+diagnostic.
 
-**One request.** The route calls Claude through the official
-`@anthropic-ai/sdk` (`src/domain/conversation/opening.js`, the only module
-that imports it; a test fails if the browser bundle can reach it) with
-`maxRetries: 0`, no fallback model and no repeat on an invalid answer. A visitor's
-explicit *Try again* is a new request, counted: a qualification allows a few
-(`CONVERSATION_MAX_ATTEMPTS`), after which the words are checked again. A
-success is answered from memory, and simultaneous requests for the same words
-share one request. Cost guards, in order: same-origin POST, body limit,
-per-visitor rate limit (`CONVERSATION_LIMITER`: 6/min, with a per-isolate
-fallback), qualification check, input ceiling (`GATE_MAX_CHARS`),
-`max_tokens` (`CONVERSATION_MAX_TOKENS`, default 1500, thinking included),
-timeout (`CONVERSATION_TIMEOUT_MS`, default 25 s), and
-`CONVERSATION_ENABLED=false` as a switch.
+**The budget is signed, not claimed.** Every reply comes back with a renewed
+qualification: the same words and id, the count of replies the conversation has
+had, valid for `CONVERSATION_SESSION_TTL_MS` (30 min) and never beyond
+`CONVERSATION_SESSION_MAX_MS` (3 h) from the first. The server uses the larger
+of that count and the history it was sent, so sending less history cannot buy
+more replies. The agent is told to draw the conversation to a close after
+`CONVERSATION_CONVERGE_AFTER` (6) replies, the last permitted reply
+(`CONVERSATION_MAX_REPLIES` − 1, default 10 in all) must be the statement of the
+purpose, and beyond that nothing is generated (`limit`; the visitor can keep the
+statement as it stands). A visitor who waited out a qualification, reloads, or is
+refused is checked again on the same words and the conversation continues from
+its history.
 
-**What is asked.** `prompt.js` holds the agent's instructions: three beats
-(recognise their situation, show what it is really about, ask one concrete
-question), steered by a private checklist of what a project's purpose needs
-(*situation* today, *people*, *outcome*, *stakes*). It asks about the missing part
-that is easiest to answer, which for a first message is usually what happens
-today ("What happens today when ...?"), not an abstract goal. It may name the
-need beneath the request but never describe how things work now, propose
-features, presuppose, pad or flatter. The model is constrained to a schema
-(`describes`, `uncertainty`, `explores`, `reflection`, `question`, in that
-order: it settles what was described, what is unknown and which part of the
-purpose the question is about before it writes what the visitor reads). The
-visitor's text is wrapped in `<visitor_description>` tags, a closing tag typed by
-the visitor cannot end the block, and the instructions say it is data, not
-instructions.
+**One request per reply.** The route calls Claude through the official
+`@anthropic-ai/sdk` (`src/domain/conversation/opening.js`, the only module that
+imports it; a test fails if the browser bundle can reach it) with `maxRetries: 0`
+and no fallback model. The one extra request is bounded and specific: a
+follow-up whose reply fails validation is asked for once more with the reason
+(`CONVERSATION_TURN_REPAIRS`, only while there is time; never for a refusal, a
+timeout or a transport failure, and never for the first reply). A visitor's
+explicit *Try again* is a new request, counted: a step allows a few
+(`CONVERSATION_MAX_ATTEMPTS`), after which the words are checked again. A success
+is answered from memory, and simultaneous requests for the same step share one
+request. Cost guards, in order: same-origin POST, body limit, per-visitor rate
+limit (`CONVERSATION_LIMITER`: 8/min, with a per-isolate fallback), history shape
+and bounds, qualification check, the signed reply budget, input ceiling
+(`GATE_MAX_CHARS`; `CONVERSATION_REPLY_MAX_CHARS` for answers), `max_tokens`
+(`CONVERSATION_MAX_TOKENS` 1500 for the first reply, `CONVERSATION_TURN_MAX_TOKENS`
+3000 for the rest, thinking included), timeouts, and `CONVERSATION_ENABLED=false`
+as a switch.
 
-**What is accepted.** `validateOpening` (`schema.js`) holds the answer to what
-a schema cannot say: both parts present, the reflection contains no question,
-the question is one sentence with one question mark at its end, about 30 to 70
-words (60 + 45 and 90 together are the hard caps), no greeting, no praise, no
-exclamation marks, no markup. Two repairs are allowed, and both only
-remove words (the log records `repaired`): a second question tacked on with
-", and what ...?" is dropped when what precedes it is a complete question, and
-a sentence of encouragement ("That is a good place to begin.") is dropped from
-the reflection when other sentences remain. A
-response that still fails, is cut off at the token ceiling, or is refused is
-never shown; the visitor sees a plain message, keeps their words and can try
+**What is asked.** `prompt.js` holds the agent's instructions. The first reply
+has three beats (recognise their situation, show what it is really about, ask one
+concrete question), steered by a private checklist of what a project's purpose
+needs. Later replies carry the whole conversation and the agent's own working
+understanding, and do four things in order: *read* the latest message (answers,
+adds, changes, contradicts, unsure, asks, diversion, corrects: each has its own
+handling, e.g. a contradiction is put side by side and asked as the one question,
+a question about price is answered honestly and the thread returns, an
+instruction aimed at the agent is declined calmly); *update the understanding*
+(what is confirmed in their words, what is only inferred, what is still open, and
+a coverage map of problem, beneficiaries, outcome, value and success that is a
+map and not a sequence); *decide the move* (the one question that most clarifies
+the purpose, or the purpose itself once it can be stated from what they said, with
+no fixed number of questions and none asked for completeness); and *write* the
+reflection and question, or the statement. The statement is one to three
+sentences in their language and terms, every claim traceable to their words, with
+no means, predictions or flourish. Visitor text and the history it travels in
+are wrapped in tags the visitor cannot close, and the instructions say they are
+data, not instructions. The prompts name no framework and make no scientific
+claim; the craft (specificity, their words, one idea per sentence, small easy
+questions, letting them do the talking) is in the instructions as behaviour.
+
+**What is accepted.** `validateOpening` (`schema.js`) and `validateTurn`
+(`turn.js`) hold the answer to what a schema cannot say: both parts present, the
+reflection contains no question, the question is one sentence with one question
+mark at its end, within the word limits, no greeting, no praise, no exclamation
+marks, no markup; for a turn also the understanding's shape and bounds, a
+question never repeated after an answer, a statement of at most 75 words and four
+sentences, and that the last permitted reply is a statement. Repairs only remove
+words (the log records `repaired`): a second question tacked on with ", and
+what ...?" is dropped when what precedes it is a complete question, and a
+sentence of encouragement is dropped from the reflection when others remain. A
+response that still fails, is cut off at the token ceiling, or is refused is never
+shown; the visitor sees a plain message, keeps their words and answer and can try
 again. The browser re-validates before it renders.
 
 **Display.** One thread, one exchange at a time, never a transcript: the
-visitor's project (a preview, with *Read in full* and *Edit* beside it), what
-Compás Caribe took from it and the one question, and the answer field, joined by
-a thin rail and sitting where the landing page's field sat. There is no header
-or footer chrome and no engineering label: that the reply is AI-written is said
-once, quietly ("Compás Caribe · AI-assisted"). On short or keyboard-open screens
-the project shrinks to a line, the reading steps aside on a phone held upright,
-and the *Full exchange* overlay pages through everything. The visitor's answer is
-recorded and persisted locally; the interface says plainly that later replies
-are not connected yet. `?diagnostics` (or `?audit`) shows the engineering
-detail: model, latency, tokens, what the question explores, and the top bar's
-live labels.
+visitor's project (a preview, with *Read in full*, *Full exchange* and *Edit*
+beside it), what Compás Caribe took from the last answer and the one question,
+and the answer field, joined by a thin rail and sitting where the landing page's
+field sat. Earlier exchanges are one tap away in *Full exchange*, which pages.
+There is no header or footer chrome and no engineering label: that the reply is
+AI-written is said once, quietly ("Compás Caribe · AI-assisted"). While a reply
+is written the answer stays on the page with a quiet "Preparing a reply"; if it
+fails the answer is kept with *Try again* and *Edit*. When the purpose is stated
+it is the page: one tap for *That's right*, one for *Change something* (a field
+opens for the correction, and a revised statement comes back); once confirmed the
+way on is *Continue*. `?diagnostics` (or `?audit`) shows the engineering detail:
+model, latency, tokens, what the agent read, how much it considers established
+and its working purpose.
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — (secret) | Claude key; `wrangler secret put ANTHROPIC_API_KEY` |
 | `CONVERSATION_MODEL` | `claude-sonnet-5-5` | model requested; must support adaptive thinking and effort |
-| `CONVERSATION_EFFORT` | `low` | `low`, `medium` or `high`; tune with `npm run test:live:conversation` |
-| `CONVERSATION_MAX_TOKENS` | 1500 | output ceiling per request |
-| `CONVERSATION_TIMEOUT_MS` | 25000 | the one request |
-| `CONVERSATION_QUALIFICATION_TTL_MS` | 900000 | how long a qualification is good |
-| `CONVERSATION_MAX_ATTEMPTS` | 3 | failed requests one qualification may cause |
-| `CONVERSATION_RATE_MAX` | 12 per 10 min | per-isolate fallback when no binding |
+| `CONVERSATION_EFFORT` | `low` | first reply: `low`, `medium` or `high`; tune with `npm run test:live:conversation` |
+| `CONVERSATION_MAX_TOKENS` | 1500 | first reply: output ceiling per request |
+| `CONVERSATION_TIMEOUT_MS` | 25000 | first reply: the one request |
+| `CONVERSATION_TURN_EFFORT` | `medium` | later replies; tune with `npm run test:live:flow` |
+| `CONVERSATION_TURN_MAX_TOKENS` | 3000 | later replies: output ceiling per request |
+| `CONVERSATION_TURN_TIMEOUT_MS` | 40000 | later replies: each request |
+| `CONVERSATION_TURN_REPAIRS` | 1 | extra requests when a reply fails validation (0 or 1) |
+| `CONVERSATION_MAX_REPLIES` | 10 | replies in one conversation, the first included; the last is a statement |
+| `CONVERSATION_CONVERGE_AFTER` | 6 | replies after which the agent is told to draw to a close |
+| `CONVERSATION_REPLY_MAX_CHARS` | 480 | the longest answer |
+| `CONVERSATION_SESSION_TTL_MS` / `_MAX_MS` | 1800000 / 10800000 | renewal window, and total lifetime from the first qualification |
+| `CONVERSATION_QUALIFICATION_TTL_MS` | 900000 | how long the gate's qualification is good |
+| `CONVERSATION_MAX_ATTEMPTS` | 3 | failed requests one step may cause |
+| `CONVERSATION_RATE_MAX` | 40 per 10 min | per-isolate fallback when no binding |
 | `CONVERSATION_ENABLED` | true | `false` switches generation off |
 | `QUALIFICATION_SECRET` | derived | optional dedicated signing key (16+ characters) |
 
@@ -309,8 +359,8 @@ live labels.
 | Behaviour | Status |
 |---|---|
 | Begin → classification (PROCEED / BLOCK / UNAVAILABLE) | **Live**: Jev via TypeSafe AI, decided by fixed rules (see below). |
-| First reflection and question after PROCEED | **Live**: one Claude request, validated server-side (see "The first conversation"). |
-| Reply to the visitor's first answer | **Not implemented**: the answer is recorded locally; nothing is generated for it. |
+| First reflection and question after PROCEED | **Live**: one Claude request, validated server-side (see "The conversation"). |
+| Replies to the visitor's answers, and the statement of the project's purpose | **Live**: one Claude request per reply, from the whole conversation, validated server-side; the visitor confirms or corrects the statement. |
 | Relevance classification (4 tiers) | Simulated lexicon in the browser; no longer on the Begin path. |
 | Discovery reflections, questions, options | Simulated: derived deterministically from the submission and prior answers. |
 | Project statement and refinements | Simulated: composed from structured parts in four registers. |
@@ -324,14 +374,13 @@ Every simulated step is labelled in the interface (*simulated*, *prototype*).
 ## Production integration
 
 1. **Jev**: done as a gate (see "The Jev gate"), and PROCEED now opens the
-   first conversation. BLOCK still stops at the diagnostic, which is its only
+   conversation. BLOCK still stops at the diagnostic, which is its only
    handling.
-2. **Claude**: the first exchange is live. Subsequent turns are the next piece:
-   a turn endpoint that takes the conversation so far from `ctx.conversation`
-   (`conversationMessages` returns it in order), a new qualification-like
-   proof per turn or a server-held session, and a per-visitor budget across
-   turns. The simulated `DiscoveryProvider` and `routing.js` remain the
-   design for the rest of discovery; move them server-side.
+2. **Claude**: the whole conversation is live, up to the confirmed statement of
+   the project's purpose, with a signed per-conversation budget. What follows is
+   the move of the confirmed statement and the transcript (`discovery.conversation`
+   in the handoff record) into real requirements work in Decision Channel; the
+   simulated `DiscoveryProvider` and `routing.js` remain the design for that.
 3. **Decision Channel**: POST the `compascaribe.handoff/1` payload to the
    intake endpoint from `transport.js`; return the real project reference.
 4. **Abuse prevention**: the client limits input and never enters a general
@@ -349,8 +398,14 @@ Every simulated step is labelled in the interface (*simulated*, *prototype*).
 - Folio paging in composers is state-driven, but it relies on the browser's
   internal textarea offset; it is verified in Chrome and not yet in Safari.
 - Begin sends the visitor's words to the Worker and on to TypeSafe AI (Jev),
-  and, once they pass, to Anthropic (Claude); the text is not stored or
-  logged. The visitor's answer and the handoff record never leave the browser.
+  and, once they pass, to Anthropic (Claude), with each answer and the
+  conversation so far; the text is not stored or logged by the site. The
+  handoff record never leaves the browser.
+- The conversation lives in the browser (and `localStorage`): nothing is held
+  server-side between replies, which is what makes the signed count the guard.
+  A visitor can resend an older history under a fresh qualification (checked by
+  Jev again); the per-visitor rate limit and the token ceiling are what bound
+  that.
 - The per-qualification ledger (one request per qualification, remembered
   successes) lives in each Worker isolate. The rate limit, the qualification's
   short life and the token ceiling are what bound cost across isolates; a

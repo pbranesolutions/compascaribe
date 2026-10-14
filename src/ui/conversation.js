@@ -1,22 +1,28 @@
-// The first conversation. Presentation only: it renders what the journey
-// holds (the visitor's project exactly as written, the model's reflection and
-// question exactly as the server validated them, the visitor's answer) and
-// computes nothing about any of it.
+// The conversation. Presentation only: it renders what the journey holds (the
+// visitor's project exactly as written, the model's reflection and question
+// exactly as the server validated them, the visitor's answer) and computes
+// nothing about any of it.
 //
 // One exchange at a time, never a transcript. The visitor's project and the
-// reply are one thread: the project (a preview, with the full text and the way
-// to edit it beside it), what Compás Caribe took from it and the one question,
-// and the answer field. There is no header or footer chrome: the controls sit
-// with the thing they act on. Everything that can be long fits its box or pages;
-// nothing scrolls. Which parts show is decided by CSS from the viewport (so a
-// keyboard opening needs no re-render); the same elements are always present.
+// latest reply are one thread: the project (a preview, with the full text and
+// the way to edit it beside it), what Compás Caribe took from the last answer
+// and the one question, and the answer field. Earlier exchanges stay one tap
+// away in "Full exchange", which pages. There is no header or footer chrome:
+// the controls sit with the thing they act on. Everything that can be long fits
+// its box or pages; nothing scrolls. Which parts show is decided by CSS from the
+// viewport (so a keyboard opening needs no re-render); the same elements are
+// always present.
 //
-// Customer-facing wording is plain. That the reply is written by an AI model is
-// stated once, quietly, on the reply itself; engineering detail (model, latency,
-// tokens, what the question explores) is in `.conv-diag`, shown only with
-// ?diagnostics.
+// When the purpose has been understood the reply is a statement of it: shown as
+// the page, with one tap to confirm it and one to say what to change. Once
+// confirmed it is the project's statement and the way on is "Continue".
+//
+// Customer-facing wording is plain. That the reply is written by an AI model
+// is stated once, quietly, on the reply itself; engineering detail (model,
+// latency, tokens, what the agent read and understood) is in `.conv-diag`,
+// shown only with ?diagnostics.
 
-import { latestOpening, latestReply, LIMITS } from '../domain/context.js'
+import { isConfirmed, latestCompas, latestReply, LIMITS, turnsOf } from '../domain/context.js'
 import { composer, errorLine, isTouch, pagedText, processing } from './components.js'
 import { h } from './dom.js'
 
@@ -30,9 +36,12 @@ const FAILURE_TEXT = {
   refused: 'A reply could not be prepared for this.',
   malformed: 'A reply could not be prepared this time.',
   provider_error: 'A reply could not be prepared this time.',
+  interrupted: 'The reply was not ready when this page was closed.',
+  limit: 'This conversation has reached the length it can have here.',
 }
 
-export const failureText = kind => `${FAILURE_TEXT[kind] || FAILURE_TEXT.provider_error} Your words are kept.`
+/** What a visitor is told when a reply could not be prepared; `kept` names what was saved ('words' before the first reply, 'answer' after). */
+export const failureText = (kind, kept = 'words') => `${FAILURE_TEXT[kind] || FAILURE_TEXT.provider_error} Your ${kept} ${kept === 'words' ? 'are' : 'is'} kept.`
 
 /**
  * Height the answer field may use: what the body leaves once the project and the
@@ -80,6 +89,14 @@ function answerRoom(box) {
   box.style.maxHeight = `${Math.max(60, available - others - 2)}px`
 }
 
+/** The agent's private notes for the diagnostics line: what it read, what it took the purpose to be, how much is established. */
+function understandingLine(turn) {
+  const u = turn.understanding
+  if (!u) return ''
+  const cov = Object.entries(u.coverage || {}).map(([k, v]) => `${k[0]}:${v === 'clear' ? '●' : v === 'partial' ? '◐' : '○'}`).join(' ')
+  return ` · read ${turn.reading || '—'} · ${u.confirmed.length} confirmed, ${u.inferred.length} inferred, ${u.open.length} open · ${cov}${u.purpose ? ` · purpose: ${u.purpose}` : ''}`
+}
+
 /**
  * @param {object} state  journey state
  * @param {object} actions
@@ -87,73 +104,112 @@ function answerRoom(box) {
  */
 export function conversationView(state, actions, kit) {
   const { primary, ply, link } = kit
-  const turn = latestOpening(state.ctx)
-  const reply = latestReply(state.ctx)
-  const failed = !turn && state.opening.status === 'failed'
-  const waiting = !turn && !failed
-  const asking = Boolean(turn) && !reply
+  const ctx = state.ctx
+  const turn = latestCompas(ctx)
+  const reply = latestReply(ctx)
+  const confirmed = isConfirmed(ctx)
+  const stated = Boolean(turn) && turn.kind === 'statement'
+  const failedOpening = !turn && state.opening.status === 'failed'
+  const waiting = !turn && !failedOpening
   const answered = Boolean(turn) && Boolean(reply)
-  const words = state.ctx.submission?.text || ''
+  const asking = Boolean(turn) && !reply && !confirmed
+  const correcting = stated && asking && state.correcting
+  // Earlier exchanges exist beyond the first reply: they are one tap away, at every size.
+  const history = turnsOf(ctx).length > 2
+  const words = ctx.submission?.text || ''
 
   // --- the visitor's project: a preview, the full text and the way to change it beside it ---
   const readFull = link('Read in full', () => actions.openOverlay('words', 0, 'conv:full'), 'conv:full')
   readFull.classList.add('conv-read')
   const exchange = link('Full exchange', () => actions.openOverlay('exchange', 0, 'conv:exchange'), 'conv:exchange')
-  exchange.classList.add('conv-only-compact')
+  exchange.classList.add(history ? 'conv-history' : 'conv-only-compact')
   const edit = link('Edit', () => actions.back(), 'conv:edit')
   edit.setAttribute('aria-label', 'Edit your words')
 
   const project = h('div', { class: 'conv-node conv-project' },
     h('div', { class: 'conv-meta' },
       h('span', { class: 'label' }, 'Your project'),
-      h('span', { class: 'conv-actions' }, readFull, turn ? exchange : null, edit)),
+      // The exchange overlay opens with the whole project, so once there is more than the first reply "Read in full" has nothing to add.
+      h('span', { class: 'conv-actions' }, history ? null : readFull, turn ? exchange : null, edit)),
     h('p', { class: 'conv-quote', 'data-clamp': 'preview', 'data-clamp-detect': 'true' }, words))
 
   const said = h('div', { class: 'conv-said' }, project)
 
-  // --- what Compás Caribe took from it, and the one question ---------------------
+  // --- what Compás Caribe took from the last answer, and the one question (or the purpose, stated) ---
   if (turn) {
-    // Once answered, the reading and the question are context, not the page: smaller, so the answer has the room.
-    const reflection = pagedText({ paragraphs: [turn.reflection], fit: answered ? '13,15' : '14,19', className: 'reflection', maxHeight: 'var(--r-max)', focusKey: 'conv-reflection-pager' })
-    reflection.classList.add('conv-reading')
-    const question = pagedText({ paragraphs: [turn.question], fit: answered ? '14,24' : '16,44', className: 'question', maxHeight: answered ? 'var(--r-max)' : 'var(--q-max)', focusKey: 'conv-question-pager' })
-    const q = question.querySelector('.question')
-    q.id = 'q'
-    q.setAttribute('role', 'heading')
-    q.setAttribute('aria-level', '1')
-    said.append(h('div', { class: 'conv-node conv-ai' },
-      h('span', { class: 'label conv-speaker' }, 'Compás Caribe', h('span', { class: 'conv-tag' }, ' · AI-assisted')),
-      reflection,
-      question))
+    const speaker = h('span', { class: 'label conv-speaker' }, stated ? 'Compás Caribe · the project’s purpose' : 'Compás Caribe', h('span', { class: 'conv-tag' }, ' · AI-assisted'))
+    if (stated) {
+      // The statement is the page: the confirming question is a quiet line under it.
+      const statement = pagedText({ paragraphs: [turn.statement], fit: answered || confirmed ? '14,20' : '17,30', className: 'question conv-statement', maxHeight: 'var(--st-max)', focusKey: 'conv-statement-pager' })
+      const q = statement.querySelector('.question')
+      q.id = 'q'
+      q.setAttribute('role', 'heading')
+      q.setAttribute('aria-level', '1')
+      const confirmQuestion = confirmed
+        ? null
+        : pagedText({ paragraphs: [turn.question], fit: answered ? '13,15' : '14,17', className: 'reflection', maxHeight: 'var(--r-max)', focusKey: 'conv-confirm-pager' })
+      if (confirmQuestion) confirmQuestion.classList.add('conv-reading')
+      said.append(h('div', { class: 'conv-node conv-ai conv-stated' }, speaker, statement, confirmQuestion))
+    } else {
+      // Once answered, the reading and the question are context, not the page: smaller, so the answer has the room.
+      const reflection = pagedText({ paragraphs: [turn.reflection], fit: answered ? '13,15' : '14,19', className: 'reflection', maxHeight: 'var(--r-max)', focusKey: 'conv-reflection-pager' })
+      reflection.classList.add('conv-reading')
+      const question = pagedText({ paragraphs: [turn.question], fit: answered ? '14,24' : '16,44', className: 'question', maxHeight: answered ? 'var(--r-max)' : 'var(--q-max)', focusKey: 'conv-question-pager' })
+      const q = question.querySelector('.question')
+      q.id = 'q'
+      q.setAttribute('role', 'heading')
+      q.setAttribute('aria-level', '1')
+      said.append(h('div', { class: 'conv-node conv-ai' }, speaker, reflection, question))
+    }
   }
 
-  // --- the reply column: waiting, failed, the field, or the recorded answer ---------
+  // --- the reply column: waiting, failed, the field, the confirmation or the recorded answer ---------
   const col = h('div', { class: `conv-node conv-reply${answered ? ' is-answered' : ''}` })
   if (waiting) {
     col.append(h('div', { class: 'conv-wait' }, processing(['Preparing a reply'], 0)))
-  } else if (failed) {
+  } else if (failedOpening) {
     col.append(
       h('div', { class: 'error', role: 'alert' }, failureText(state.opening.failure)),
-      h('div', { class: 'conv-retry' }, primary('Try again', () => actions.retryOpening(), { disabled: state.busy, autofocus: true, key: 'conv:retry' })))
+      h('div', { class: 'conv-retry' }, primary('Try again', () => actions.retryConversation(), { disabled: state.busy, autofocus: true, key: 'conv:retry' })))
+  } else if (confirmed) {
+    col.append(
+      h('div', { class: 'conv-confirm' }, primary('Continue', () => actions.accept(), { autofocus: true, key: 'conv:continue' })),
+      h('p', { class: 'conv-note conv-notice', 'data-fit': '12,14', style: { margin: 0, maxHeight: 'var(--s-max)' } },
+        'Saved in this browser. Next is a simulated handoff; nothing is sent.'))
   } else if (reply) {
-    const editAnswer = link('Edit', () => actions.editReply(), 'conv:edit-answer')
-    editAnswer.setAttribute('aria-label', 'Edit your answer')
+    const failed = state.turn.status === 'failed'
+    const editAnswer = failed || state.turn.status === 'idle' ? link('Edit', () => actions.editReply(), 'conv:edit-answer') : null
+    if (editAnswer) editAnswer.setAttribute('aria-label', 'Edit your answer')
     const answerBox = h('div', { class: 'conv-answer', 'data-measure': 'true' },
-      h('div', { class: 'conv-meta' }, h('span', { class: 'label' }, 'Your answer'), editAnswer),
+      h('div', { class: 'conv-meta' }, h('span', { class: 'label' }, stated ? 'Your correction' : 'Your answer'), editAnswer),
       pagedText({ paragraphs: [reply.text], fit: '14,20', className: 'prose', focusKey: 'conv-answer-pager' }))
     answerBox.measure = () => answerRoom(answerBox)
+    col.append(answerBox)
+    if (failed) {
+      const limit = state.turn.failure === 'limit'
+      col.append(
+        h('div', { class: 'error', role: 'alert' }, failureText(state.turn.failure, 'answer')),
+        h('div', { class: 'conv-retry' },
+          limit && turnsOf(ctx).some(t => t.kind === 'statement')
+            ? primary('Keep this statement', () => actions.confirmStatement(), { disabled: state.busy, autofocus: true, key: 'conv:keep' })
+            : primary('Try again', () => actions.retryConversation(), { disabled: state.busy, autofocus: true, key: 'conv:retry' })))
+    } else {
+      col.append(h('div', { class: 'conv-wait' }, processing(['Preparing a reply'], 0)))
+    }
+  } else if (stated && !correcting) {
     col.append(
-      answerBox,
-      h('p', { class: 'conv-note conv-notice', 'data-fit': '12,14', style: { margin: 0, maxHeight: 'var(--s-max)' } },
-        'Your answer is saved in this browser. Compás Caribe’s next reply is not connected yet.'))
+      errorLine(state),
+      h('div', { class: 'conv-confirm' },
+        primary('That’s right', () => actions.confirmStatement(), { autofocus: true, key: 'conv:confirm' }),
+        link('Change something', () => actions.openCorrection(), 'conv:correct')))
   } else {
-    const send = primary('Send', () => actions.sendReply(), { key: 'conv:send' })
+    const send = primary('Send', () => actions.sendReply(), { key: 'conv:send', disabled: state.busy })
     const comp = composer({
       id: 'reply',
       value: state.drafts.reply,
       limit: LIMITS.reply,
-      placeholder: 'Your answer, in your own words',
-      label: 'Your answer to Compás Caribe’s question',
+      placeholder: correcting ? 'What you would change, in your own words' : 'Your answer, in your own words',
+      label: correcting ? 'What you would change in the statement of your project’s purpose' : 'Your answer to Compás Caribe’s question',
       hint: isTouch() ? null : 'Ctrl + Enter to send',
       onInput: v => actions.setDraft('reply', v),
       onSubmit: () => actions.sendReply(),
@@ -162,10 +218,11 @@ export function conversationView(state, actions, kit) {
       quietCount: true,
       action: send,
     })
-    col.append(
-      errorLine(state),
-      comp,
-      h('p', { class: 'conv-note' }, 'Your answer is saved in this browser. Later replies are not connected yet.'))
+    if (correcting) {
+      const back = link('Cancel', () => actions.closeCorrection(), 'conv:cancel-correction')
+      col.append(h('div', { class: 'conv-meta' }, h('span', { class: 'label' }, 'What would you change?'), back))
+    }
+    col.append(errorLine(state), comp)
   }
 
   // --- development diagnostics: present, hidden unless ?diagnostics ---------------
@@ -173,10 +230,13 @@ export function conversationView(state, actions, kit) {
     const src = turn.source || {}
     const a = turn.analysis || {}
     const usage = src.usage ? `${src.usage.inputTokens} in · ${src.usage.outputTokens} out` : 'tokens not reported'
-    col.append(h('p', { class: 'conv-diag' },
-      `${src.model || 'model not reported'} · ${small(src.latencyMs)} ms · ${usage} · describes ${a.describes || '—'} · explores ${a.explores || '—'}${a.uncertainty ? ` · unknown: ${a.uncertainty}` : ''}`))
+    const base = `${src.model || 'model not reported'} · ${small(src.latencyMs)} ms · ${usage}`
+    const detail = turn.kind === 'opening'
+      ? ` · describes ${a.describes || '—'} · explores ${a.explores || '—'}${a.uncertainty ? ` · unknown: ${a.uncertainty}` : ''}`
+      : understandingLine(turn)
+    col.append(h('p', { class: 'conv-diag' }, base + detail))
   }
 
   const body = h('div', { class: 'ply-body conv', 'data-budget': 'conversation' }, said, col)
-  return ply([body], `is-conversation${asking ? ' is-asking' : ''}${answered ? ' is-answered' : ''}`)
+  return ply([body], `is-conversation${asking ? ' is-asking' : ''}${answered ? ' is-answered' : ''}${stated ? ' is-stated' : ''}${confirmed ? ' is-confirmed' : ''}`)
 }

@@ -45,11 +45,23 @@ test('the browser bundle never reaches the model SDK, a server credential or the
   }
 })
 
-test('the visitor’s reply is not sent anywhere: no module reachable from the browser posts it', () => {
+test('the visitor’s words leave the browser only through the gate and conversation clients, to their two routes', () => {
   const files = reachable('src/main.js')
   const posting = [...files].filter(([, src]) => /fetch\(|XMLHttpRequest|sendBeacon/.test(src)).map(([f]) => relative(root, f).replaceAll('\\', '/')).sort()
   const allowed = ['src/domain/conversation/client.js', 'src/domain/gate/client.js']
   assert.deepEqual(posting.filter(f => !allowed.includes(f)), [], 'only the gate and conversation clients make requests')
-  const conversationClient = readFileSync(join(root, 'src/domain/conversation/client.js'), 'utf8')
-  assert.ok(!/reply/i.test(conversationClient.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')), 'the conversation client only knows how to ask for an opening')
+  const conversationClient = readFileSync(join(root, 'src/domain/conversation/client.js'), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+  const gateClient = readFileSync(join(root, 'src/domain/gate/client.js'), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+  assert.deepEqual([...conversationClient.matchAll(/['"`](\/api\/[^'"`]*)['"`]/g)].map(m => m[1]), ['/api/conversation'])
+  assert.deepEqual([...gateClient.matchAll(/['"`](\/api\/[^'"`]*)['"`]/g)].map(m => m[1]), ['/api/gate'])
+  // Nothing in the browser addresses the model provider, whatever the visitor's words cause.
+  for (const [file, src] of files) assert.ok(!/api\.anthropic\.com/.test(src), `${relative(root, file)} names the model provider`)
+})
+
+test('what the browser shares with the Worker is pure: the turn, history and schema modules do no I/O', () => {
+  for (const f of ['schema.js', 'turn.js', 'history.js']) {
+    const src = readFileSync(join(root, 'src/domain/conversation', f), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+    assert.ok(!/fetch\(|process\.|import\s.*@anthropic|crypto\.|XMLHttpRequest/.test(src), f)
+    for (const m of src.matchAll(/from\s+['"](\.[^'"]+)['"]/g)) assert.ok(!/opening|qualification|worker/.test(m[1]), `${f} imports ${m[1]}`)
+  }
 })

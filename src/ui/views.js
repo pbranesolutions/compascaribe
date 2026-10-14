@@ -2,7 +2,7 @@
 // overlays, the overlay element). Presentation only; all behaviour goes
 // through `actions`.
 
-import { latestOpening, latestReply, LIMITS } from '../domain/context.js'
+import { LIMITS, turnsOf } from '../domain/context.js'
 import { clarifyPrompt } from '../domain/discovery/clarify.js'
 import { trimTo } from '../domain/discovery/language.js'
 import { FOCUS_TITLES, OVERLAY_TITLES, REFINEMENTS } from '../domain/discovery/vocabulary.js'
@@ -306,7 +306,7 @@ export function continueView(state, actions) {
     h('div', { class: `ply-body${wide ? ' is-centered' : ''}`, style: { gridTemplateRows: 'auto minmax(0, 1fr) auto' } },
       h('h1', { class: 'question', 'data-fit': '24,56', style: { margin: 0, maxHeight: 'var(--q-max)' } }, 'This is already the start of your project.'),
       pagedText({ maxHeight: wide ? 'min(44vh, 420px)' : null, paragraphs: [
-        'You have a project statement in your own terms: the objective, who it serves, today’s baseline and a test of success.',
+        'You have a statement of what the project is for, in your own terms: who it serves, what changes and why it matters.',
         'Decision Channel is where Compás Caribe turns that into structured functional requirements: what the solution must do, decided one question at a time, with you.',
         'When you continue, everything here goes with you into Decision Channel, so nothing is asked twice.',
       ], fit: '13,23' }),
@@ -364,7 +364,7 @@ function noteText(n) {
   if (n.plan) parts.push(`questions planned: ${n.plan.map(f => FOCUS_TITLES[f] || f).join(' › ')}`)
   if (n.mode) parts.push(`rewritten as: ${(REFINEMENTS.find(r => r.variant === n.mode) || {}).label || n.mode}`)
   if (n.stage === 'conversation' && n.live) {
-    parts.push(`first reply written by ${n.model || 'the model'}`)
+    parts.push(`${n.move ? (n.move === 'statement' ? 'purpose stated' : 'next question') : 'first reply'} written by ${n.model || 'the model'}`)
     if (typeof n.latencyMs === 'number') parts.push(`${Math.round(n.latencyMs)} ms`)
     if (n.usage) parts.push(`${n.usage.inputTokens} in · ${n.usage.outputTokens} out tokens`)
     return parts.join(' · ')
@@ -426,20 +426,25 @@ export function overlay(state, actions) {
     title = h('span', { class: 'label' }, h('b', null, 'Your words'), ' · exactly as written')
     footer = [h('span', { class: 'pager-slot' }), primary('Back', close, { autofocus: true })]
   } else if (name === 'exchange') {
-    const opening = latestOpening(state.ctx)
-    const answer = latestReply(state.ctx)
-    const rows = [
-      ['Your project', state.ctx.submission?.text || ''],
-      ...(opening ? [['Compás Caribe · what it took from this', opening.reflection], ['Compás Caribe · its question', opening.question]] : []),
-      ...(answer ? [['Your answer', answer.text]] : []),
-    ]
+    // Everything said, in order: the project as written, then each reply and each answer. Paged, never a scrolling transcript.
+    const rows = [['Your project', state.ctx.submission?.text || '']]
+    for (const t of turnsOf(state.ctx)) {
+      if (t.role === 'compas') {
+        const said = t.kind === 'statement' ? [t.statement, t.question] : [t.reflection, t.question]
+        rows.push([t.kind === 'statement' ? 'Compás Caribe · the project’s purpose' : 'Compás Caribe', said.filter(Boolean).join('\n\n')])
+      } else if (t.kind === 'confirmation') {
+        rows.push(['You', 'This is right.'])
+      } else {
+        rows.push([t.to && turnsOf(state.ctx).find(x => x.id === t.to)?.kind === 'statement' ? 'Your correction' : 'Your answer', t.text])
+      }
+    }
     title = h('span', { class: 'label' }, h('b', null, 'The exchange'), ' · in full')
     body = pagedList({
       items: rows,
       page,
       onPage: p2 => actions.overlayPage(p2),
       focusKey: 'overlay-pager',
-      renderItem: ([k, v], i) => h('div', { class: 'row' }, h('span', { class: 'num' }, String(i + 1).padStart(2, '0')), h('span', null, h('span', { class: 'k' }, k), h('span', { class: 'v', style: { WebkitLineClamp: 'unset', display: 'block', fontSize: '16px' } }, v))),
+      renderItem: ([k, v], i) => h('div', { class: 'row' }, h('span', { class: 'num' }, String(i + 1).padStart(2, '0')), h('span', null, h('span', { class: 'k' }, k), h('span', { class: 'v', style: { WebkitLineClamp: 'unset', display: 'block', fontSize: '16px', whiteSpace: 'pre-wrap' } }, v))),
       label: 'Exchange',
     })
     footer = [h('span'), primary('Back', close, { autofocus: true })]
@@ -474,8 +479,8 @@ export function overlay(state, actions) {
   } else if (name === 'notes') {
     const notes = [...state.notes].reverse()
     const intro = [
-      ['What is live', 'Two steps. The classification at Begin: your words go to a Compás Caribe server function, which asks the Jev model (TypeSafe AI) three yes/no questions and applies fixed rules to the probabilities. Then, only if that passes, the first reply: the same server function makes one request to a Claude model, which writes the reflection and the question you see.'],
-      ['What is simulated', 'Everything after the first exchange: the discovery questions, reflections and the project statement are produced by deterministic rules in this browser, and the conversation does not continue past your first answer yet. No generative model is called for them.'],
+      ['What is live', 'Two steps. The classification at Begin: your words go to a Compás Caribe server function, which asks the Jev model (TypeSafe AI) three yes/no questions and applies fixed rules to the probabilities. Then, only if that passes, the conversation: for each reply the same server function makes one request to a Claude model, which reads what you have said so far and writes the reflection and the question you see, or, when it understands the purpose, states it for you to confirm or correct.'],
+      ['What is simulated', 'Everything after the conversation: the handoff to Decision Channel is produced by deterministic rules in this browser, and nothing is sent. (The earlier simulated discovery questions are not reachable from Begin.)'],
       ['What is real', 'The journey, the project context it builds, the limits on every text, the no-scroll layout and the handoff record are the real architecture. Each simulated step sits behind an interface a Claude model or Jev will replace.'],
     ]
     const items = [...intro.map(([k, v]) => ({ k, v })), ...notes.map(n => ({ k: `${n.stage || 'step'} · ${n.at?.slice(11, 19) || ''}`, v: noteText(n) }))]

@@ -12,7 +12,8 @@
     "deploy": "npm run build && wrangler deploy",
     "test:browser": "node tests/browser/run.mjs --url http://localhost:5173",
     "test:live": "node tests/live/gate.live.mjs",
-    "test:live:conversation": "node tests/live/conversation.live.mjs"
+    "test:live:conversation": "node tests/live/conversation.live.mjs",
+    "test:live:flow": "node tests/live/conversation-flow.live.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.31.2",

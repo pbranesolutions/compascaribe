@@ -95,7 +95,7 @@ function readoutFor(state) {
   }
   if (s === 'statement' || s === 'refine') return `<b>Statement</b> · Draft ${state.ctx.statement?.version || 1}`
   if (s === 'gate') return '<b>Jev gate</b>'
-  if (s === 'conversation') return '<b>First exchange</b>'
+  if (s === 'conversation') return '<b>Conversation</b>'
   if (s === 'qualifying') return '<b>Reading</b>'
   if (s === 'composing') return '<b>Writing</b>'
   if (s === 'continue') return '<b>Continue</b>'

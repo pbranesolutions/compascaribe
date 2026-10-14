@@ -124,13 +124,55 @@ export function turnsOf(ctx) {
   return Array.isArray(ctx?.conversation?.turns) ? ctx.conversation.turns : []
 }
 
+/** The first reply of the conversation, if there is one. */
 export function latestOpening(ctx) {
   return [...turnsOf(ctx)].reverse().find(t => t.role === 'compas' && t.kind === 'opening') || null
 }
 
+/** What Compás Caribe said last: the opening, a follow-up or a statement of the purpose. */
+export function latestCompas(ctx) {
+  return [...turnsOf(ctx)].reverse().find(t => t.role === 'compas') || null
+}
+
+/** The visitor's answer that nothing has been written for yet (recorded, or being answered). */
 export function latestReply(ctx) {
   const last = turnsOf(ctx).at(-1)
-  return last && last.role === 'visitor' ? last : null
+  return last && last.role === 'visitor' && last.kind === 'reply' ? last : null
+}
+
+/** The visitor confirmed the stated purpose: the conversation is complete. */
+export function isConfirmed(ctx) {
+  const last = turnsOf(ctx).at(-1)
+  return Boolean(last && last.role === 'visitor' && last.kind === 'confirmation')
+}
+
+/** The statement of the purpose waiting for the visitor to confirm or correct it. */
+export function openStatement(ctx) {
+  const last = turnsOf(ctx).at(-1)
+  return last && last.role === 'compas' && last.kind === 'statement' ? last : null
+}
+
+/** The most recent statement of the purpose, whether or not an answer to it has been written for yet. */
+export function lastStatement(ctx) {
+  return [...turnsOf(ctx)].reverse().find(t => t.role === 'compas' && t.kind === 'statement') || null
+}
+
+/** The statement the visitor confirmed, if they did. */
+export function confirmedStatement(ctx) {
+  const last = turnsOf(ctx).at(-1)
+  if (!last || last.role !== 'visitor' || last.kind !== 'confirmation') return null
+  return turnsOf(ctx).find(t => t.id === last.to) || null
+}
+
+/** How many times the visitor has answered. */
+export function exchangeCount(ctx) {
+  return turnsOf(ctx).filter(t => t.role === 'visitor' && t.kind === 'reply').length
+}
+
+/** What the agent last understood about the project: confirmed facts, interpretations, what is open. Null until the first follow-up. */
+export function latestUnderstanding(ctx) {
+  const t = [...turnsOf(ctx)].reverse().find(x => x.role === 'compas' && x.understanding)
+  return t ? t.understanding : null
 }
 
 /** The opening description followed by every turn: what a later exchange is built from. */
@@ -154,18 +196,57 @@ export function withOpening(ctx, opening, source = {}) {
   return touch({ ...ctx, conversation: { turns: [turn] } })
 }
 
-/** Records the visitor's answer to the latest opening, replacing an earlier unsent-to-anyone answer. */
-export function withReply(ctx, text) {
-  const opening = latestOpening(ctx)
-  if (!opening) return ctx
-  const base = latestReply(ctx) ? turnsOf(ctx).slice(0, -1) : turnsOf(ctx)
-  const turn = { id: uid('t'), role: 'visitor', kind: 'reply', at: now(), text: String(text).trim(), to: opening.id }
-  return touch({ ...ctx, conversation: { turns: [...base, turn] } })
+/**
+ * Records the model's next reply: a follow-up question, or the project's
+ * purpose stated. It follows the visitor's answer, which it must be written for.
+ */
+export function withTurn(ctx, turn, source = {}) {
+  if (!latestReply(ctx)) return ctx
+  const statement = turn.move === 'statement'
+  const entry = {
+    id: uid('t'),
+    role: 'compas',
+    kind: statement ? 'statement' : 'followup',
+    at: now(),
+    reflection: turn.reflection,
+    question: turn.question,
+    ...(statement ? { statement: turn.statement } : {}),
+    reading: turn.reading,
+    understanding: turn.understanding,
+    source: { model: source.model ?? null, latencyMs: source.latencyMs ?? null, usage: source.usage ?? null },
+  }
+  return touch({ ...ctx, conversation: { turns: [...turnsOf(ctx), entry] } })
 }
 
+/**
+ * Records the visitor's answer to what Compás Caribe last said (a question, or
+ * a statement they are correcting), replacing an answer no reply was written for.
+ */
+export function withReply(ctx, text) {
+  const last = latestReply(ctx) ? turnsOf(ctx).slice(0, -1) : turnsOf(ctx)
+  const asked = [...last].reverse().find(t => t.role === 'compas')
+  if (!asked || last.at(-1) !== asked) return ctx
+  const turn = { id: uid('t'), role: 'visitor', kind: 'reply', at: now(), text: String(text).trim(), to: asked.id }
+  return touch({ ...ctx, conversation: { turns: [...last, turn] } })
+}
+
+/** Takes the latest answer back (to edit it), if no reply has been written for it. */
 export function withoutReply(ctx) {
   if (!latestReply(ctx)) return ctx
   return touch({ ...ctx, conversation: { turns: turnsOf(ctx).slice(0, -1) } })
+}
+
+/**
+ * The visitor confirms the stated purpose. The conversation is complete and the
+ * statement becomes the project's statement, in the visitor's confirmed words.
+ */
+export function withConfirmation(ctx) {
+  // The latest statement, even when a correction of it was written but no revision came back: it stands as it is.
+  const stated = lastStatement(ctx)
+  if (!stated || isConfirmed(ctx)) return ctx
+  const confirmation = { id: uid('t'), role: 'visitor', kind: 'confirmation', at: now(), to: stated.id }
+  const next = touch({ ...ctx, conversation: { turns: [...turnsOf(ctx), confirmation] } })
+  return withStatement(next, { text: stated.statement, title: 'Project purpose', source: 'conversation' }, 'confirmed in conversation')
 }
 
 export function withQualification(ctx, q) {

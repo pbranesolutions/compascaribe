@@ -788,6 +788,8 @@ html[data-short='true'] .gate .ply-body { gap: 6px; }
 .conv {
   --conv-gap: 18px;
   --q-max: 150px;
+  /* The stated purpose is the page when it arrives: it gets more room than a question, and pages if it still cannot fit. */
+  --st-max: 210px;
   --rail: 30px;
   position: relative;
   grid-template-rows: auto minmax(0, 1fr);
@@ -798,7 +800,7 @@ html[data-short='true'] .gate .ply-body { gap: 6px; }
   margin-top: clamp(0px, 4vh, 48px);
 }
 @media (min-width: 600px) and (min-height: 640px) { .conv { margin-top: clamp(0px, 9vh, 110px); } }
-@media (min-width: 900px) and (min-height: 700px) { .conv { --q-max: 190px; --conv-gap: 24px; } }
+@media (min-width: 900px) and (min-height: 700px) { .conv { --q-max: 190px; --st-max: 290px; --conv-gap: 24px; } }
 .conv-said, .conv-reply { display: grid; gap: var(--conv-gap); align-content: start; min-width: 0; min-height: 0; }
 .conv-reply { gap: 8px; }
 .conv-said > .paged, .conv-reply > .paged { min-height: 0; }
@@ -845,6 +847,8 @@ html[data-short='true'] .gate .ply-body { gap: 6px; }
   color: var(--muted);
 }
 .conv-read, .conv-only-compact { display: none; }
+/* Once there is more than the first exchange, the way to the earlier ones is always shown. */
+.conv-history { display: inline; }
 .conv-project.is-clamped .conv-read { display: inline; }
 
 /* What Compás Caribe took from it, and the one question */
@@ -857,6 +861,9 @@ html[data-short='true'] .gate .ply-body { gap: 6px; }
 /* The reply column */
 .conv-wait { align-self: start; }
 .conv-retry { display: flex; }
+/* The stated purpose: one tap to confirm, one to say what to change. */
+.conv-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; min-width: 0; }
+.conv-stated .conv-statement { margin-top: 2px; }
 .conv-note { margin: 0; font-family: var(--font-text); font-size: 13px; line-height: 1.35; color: var(--muted); overflow: hidden; }
 .conv-diag { display: none; margin: 4px 0 0; font: 500 11px/1.4 var(--font-mono); letter-spacing: 0.04em; color: var(--faint); overflow-wrap: anywhere; }
 html[data-diagnostics='true'] .conv-diag { display: block; }
@@ -874,7 +881,7 @@ html[data-diagnostics='true'] .conv-diag { display: block; }
 html[data-medium='true'] .conv-quote { -webkit-line-clamp: 2; }
 
 /* Short windows: no rail, a two-line preview, and the question gets its own room. */
-html[data-short='true'] .conv { --conv-gap: 8px; --q-max: 84px; --rail: 0px; margin-top: 0; }
+html[data-short='true'] .conv { --conv-gap: 8px; --q-max: 84px; --st-max: 128px; --rail: 0px; margin-top: 0; }
 html[data-short='true'] .conv-node::before, html[data-short='true'] .conv-node::after { display: none; }
 html[data-short='true'] .conv-said { gap: 8px; }
 html[data-short='true'] .conv-ai { gap: 4px; }
@@ -893,7 +900,7 @@ html[data-short='true'] .conv-note:not(.conv-notice) { display: none; }
 }
 
 /* Keyboard open or a very short window: one line of the project, the question, and the field. */
-html[data-tiny='true'] .conv { --conv-gap: 6px; --q-max: 96px; --r-max: 58px; }
+html[data-tiny='true'] .conv { --conv-gap: 6px; --q-max: 96px; --st-max: 104px; --r-max: 58px; }
 html[data-tiny='true'] .conv-said { gap: 6px; }
 html[data-tiny='true'] .conv-project .conv-meta { display: contents; }
 html[data-tiny='true'] .conv-project { display: flex; align-items: baseline; gap: 12px; }
@@ -908,6 +915,6 @@ html[data-tiny='true'] .is-answered .conv-reading { display: none; }
 /* Upright with the keyboard open: the question is what is being answered; the reading waits one tap away. */
 @media (max-width: 559px) {
   html[data-tiny='true'] .is-asking .conv-reading { display: none; }
-  html[data-tiny='true'] .conv { --q-max: 108px; }
+  html[data-tiny='true'] .conv { --q-max: 108px; --st-max: 112px; }
 }
-@media (min-width: 560px) and (max-height: 419px) { html[data-tiny='true'] .conv { --q-max: 110px; --r-max: 96px; } }
+@media (min-width: 560px) and (max-height: 419px) { html[data-tiny='true'] .conv { --q-max: 110px; --st-max: 120px; --r-max: 96px; } }
