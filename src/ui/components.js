@@ -58,17 +58,18 @@ export function topBar(state, actions) {
   const hasWork = Boolean(state.ctx.submission) && state.stage !== 'welcome'
   // Progress is shown once there is progress to show: not before the visitor has begun.
   // The gate is a diagnostic end point: there is no route beyond it to show.
-  const showRoute = state.stage !== 'welcome' && state.stage !== 'gate'
+  const showRoute = state.stage !== 'welcome' && state.stage !== 'gate' && state.stage !== 'conversation'
   // The landing page has one purpose: describing the project. Prototype notes
   // are offered once there is simulated output to explain.
   const onLanding = state.stage === 'welcome'
-  // The gate is the one live AI step; every other stage after the landing page is simulated.
-  const live = state.stage === 'gate'
+  // The gate and the first conversation are the live AI steps; every other stage after the landing page is simulated.
+  const live = state.stage === 'gate' || state.stage === 'conversation'
+  const liveLabel = state.stage === 'conversation' ? 'Live · AI reply' : 'Live · Jev classification'
   const understandingTarget = state.stage === 'done' || state.stage === 'handoff' ? 'record' : 'review'
 
   return h('header', { class: 'bar', role: 'banner' },
     h('div', { class: 'brand' }, 'Compás Caribe',
-      live ? h('small', null, 'Live · Jev classification') : onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
+      live ? h('small', null, liveLabel) : onLanding ? null : h('small', null, h('button', { type: 'button', class: 'link', 'data-focus-key': 'bar:notes', style: { font: 'inherit', color: 'inherit', letterSpacing: 'inherit' }, onClick: () => actions.openOverlay('notes', 0, 'bar:notes'), 'aria-label': 'Prototype notes: how the AI is simulated' }, 'Prototype · AI simulated'))),
     showRoute
       ? h('nav', { class: 'bar-mid', 'aria-label': 'Journey' },
         h('div', { class: 'route', role: 'list', 'aria-label': 'Route through the journey' }, segs))
@@ -92,6 +93,7 @@ function readoutFor(state) {
   }
   if (s === 'statement' || s === 'refine') return `<b>Statement</b> · Draft ${state.ctx.statement?.version || 1}`
   if (s === 'gate') return '<b>Jev gate</b>'
+  if (s === 'conversation') return '<b>First exchange</b>'
   if (s === 'qualifying') return '<b>Reading</b>'
   if (s === 'composing') return '<b>Writing</b>'
   if (s === 'continue') return '<b>Continue</b>'

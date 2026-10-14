@@ -2,7 +2,9 @@
 //
 // Receives the visitor's words, runs the gate pipeline (validate -> Jev ->
 // decide) and returns the GateResult. It never calls generative AI and never
-// routes; the caller decides what a result means.
+// routes; the caller decides what a result means. A PROCEED additionally
+// carries a signed qualification (see conversation/qualification.js), the only
+// thing that lets POST /api/conversation generate a reply.
 //
 // Guards, in order: method, same-origin, body size and shape, rate limit,
 // input validation, then in-flight de-duplication. The API key is read from
@@ -11,60 +13,25 @@
 
 import { resolveConfig } from '../src/domain/gate/config.js'
 import { GATE_SCHEMA, runGate, unavailable } from '../src/domain/gate/pipeline.js'
+import { issueQualification, signingSecret } from '../src/domain/conversation/qualification.js'
+import { resolveConversationConfig } from '../src/domain/conversation/config.js'
+import { createRateLimiter, json, problem } from './http.js'
 
 const MAX_BODY_BYTES = 16 * 1024
-const RATE_WINDOW_MS = 10 * 60 * 1000
-const RATE_MAX = 30
+const limiter = createRateLimiter({ binding: 'GATE_LIMITER', maxEnv: 'GATE_RATE_MAX', defaultMax: 30 })
 
 const inflight = new Map()
-const hits = new Map()
 
 /** Test hook: clears module state shared across requests in one isolate. */
 export function resetGateState() {
   inflight.clear()
-  hits.clear()
+  limiter.reset()
 }
-
-function json(body, status = 200, headers = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers },
-  })
-}
-
-const problem = (error, status, headers) => json({ error }, status, headers)
 
 async function fingerprint(model, text) {
   const bytes = new TextEncoder().encode(`${model}\n${text}`)
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-/** Per-isolate sliding window: a backstop for when no rate-limit binding is configured. */
-function localLimit(key, max, now) {
-  const recent = (hits.get(key) || []).filter(t => now - t < RATE_WINDOW_MS)
-  if (recent.length >= max) {
-    hits.set(key, recent)
-    return false
-  }
-  recent.push(now)
-  hits.set(key, recent)
-  if (hits.size > 5000) for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] >= RATE_WINDOW_MS) hits.delete(k)
-  return true
-}
-
-async function allowed(request, env, now) {
-  const key = request.headers.get('cf-connecting-ip') || 'local'
-  if (env.GATE_LIMITER && typeof env.GATE_LIMITER.limit === 'function') {
-    try {
-      const { success } = await env.GATE_LIMITER.limit({ key })
-      return success
-    } catch {
-      /* binding trouble must not take the gate down; fall back to the local window */
-    }
-  }
-  const max = Number(env.GATE_RATE_MAX)
-  return localLimit(key, Number.isFinite(max) && max > 0 ? max : RATE_MAX, now())
 }
 
 /**
@@ -84,7 +51,7 @@ export async function handleGate(request, env = {}, deps = {}) {
   const declared = Number(request.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return problem('too_long', 413)
 
-  if (!(await allowed(request, env, now))) {
+  if (!(await limiter.allowed(request, env, now))) {
     log({ evt: 'gate', outcome: 'rate_limited' })
     return json(unavailable({ kind: 'rate_limited', config }), 429, { 'retry-after': '60' })
   }
@@ -145,5 +112,18 @@ export async function handleGate(request, env = {}, deps = {}) {
     evt: 'gate', schema: GATE_SCHEMA, decision: result.decision, rule: result.rule, model: result.model,
     latencyMs: result.latencyMs, attempts: result.attempts, failure: result.failure?.kind || null, chars: text.length,
   })
-  return json(result, result.decision === 'UNAVAILABLE' ? 503 : 200)
+
+  if (result.decision !== 'PROCEED') return json(result, result.decision === 'UNAVAILABLE' ? 503 : 200)
+
+  // The server's own statement that these exact words passed the gate. The
+  // conversation endpoint generates nothing without it, and it cannot be
+  // produced anywhere else: BLOCK and UNAVAILABLE never receive one. It is only
+  // issued when a reply can actually follow (the route is enabled and the model
+  // key is configured); otherwise PROCEED is returned bare, as before.
+  const conversation = resolveConversationConfig(env)
+  const generating = conversation.enabled && typeof env.ANTHROPIC_API_KEY === 'string' && env.ANTHROPIC_API_KEY.trim() !== ''
+  const qualification = generating
+    ? await issueQualification({ text, secret: signingSecret(env), gateModel: result.model, ttlMs: conversation.qualificationTtlMs, now })
+    : null
+  return json(qualification ? { ...result, qualification } : result, 200)
 }

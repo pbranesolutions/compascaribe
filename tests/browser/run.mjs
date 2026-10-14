@@ -8,9 +8,16 @@
 // it needs the source modules). The gate scenarios answer /api/gate from canned
 // envelopes injected into the page here, never from the app; one scenario uses
 // the real endpoint and compares what is displayed with what it returned.
+// --conv runs only the first-conversation scenarios.
+//
+// The first conversation is exercised the same way: /api/gate and
+// /api/conversation are answered by envelopes injected into the page (never by
+// the app), so layouts, states and request counts are deterministic. What the
+// real model writes is checked by `npm run test:live:conversation`, not here.
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { validateOpening } from '../../src/domain/conversation/schema.js'
 import { evaluate, key, launchChrome, navigate, screenshot, setViewport, sleep, waitFor } from './cdp.mjs'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => (a.startsWith('--') ? [a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true] : [])).filter(x => x.length))
@@ -71,8 +78,22 @@ const DEV = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE)
 const GATE_HOOK = `(() => {
   const real = window.fetch.bind(window)
   const g = (window.__gate = { stub: null, last: null, calls: 0 })
+  window.__conv = { stub: null, last: null, calls: 0 }
   window.fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input.url
+    if (url.includes('/api/conversation')) {
+      const c = window.__conv
+      c.calls++
+      try { c.last = JSON.parse(init.body) } catch { c.last = null }
+      if (c.stub) {
+        if (c.stub.delayMs) await new Promise(r => setTimeout(r, c.stub.delayMs))
+        return new Response(JSON.stringify(c.stub.body), { status: c.stub.status, headers: { 'content-type': 'application/json' } })
+      }
+      const res = await real(input, init)
+      c.lastResponse = null
+      res.clone().json().then(body => { c.lastResponse = { status: res.status, body } }).catch(() => {})
+      return res
+    }
     if (!url.includes('/api/gate')) return real(input, init)
     g.calls++
     if (g.stub) {
@@ -308,7 +329,284 @@ async function gateScenarios(page, vp) {
   const dom = await gateDom()
   const wantReal = real.body.signals ? [real.body.signals.intent, real.body.signals.irrelevance, real.body.signals.spam].map(n => n.toFixed(3)) : ['—', '—', '—']
   await auditAndShoot(page, vp, 'gate-real')
-  verdict(vp, 'gate-real-matches', dom.word === real.body.decision && JSON.stringify(dom.signals) === JSON.stringify(wantReal), JSON.stringify({ http: real.status, decision: real.body.decision, failure: real.body.failure && real.body.failure.kind, shown: dom.word }))
+  const gateReal = JSON.stringify({ http: real.status, decision: real.body.decision, failure: real.body.failure && real.body.failure.kind, shown: dom.word })
+  // PROCEED with a qualification continues to the real conversation route: what is displayed is what it returned
+  // (a live reply when ANTHROPIC_API_KEY is configured). Without a qualification the server is not configured to
+  // generate, and PROCEED stays at the diagnostic with no model request.
+  if (real.body.qualification) {
+    await waitFor(page, 'window.__cc.state.stage === "conversation" && !window.__cc.state.busy && window.__conv.lastResponse', { timeout: 60000 })
+    const conv = JSON.parse(await evaluate(page, 'JSON.stringify(window.__conv.lastResponse)'))
+    const shown = await convDom(page)
+    await auditAndShoot(page, vp, 'conv-real')
+    if (conv.body.status === 'ok') {
+      verdict(vp, 'conv-real-matches', whole(shown.question, conv.body.opening.question) && whole(shown.reflection, conv.body.opening.reflection) && shown.words === TEXT, JSON.stringify({ http: conv.status, model: conv.body.model, latencyMs: conv.body.latencyMs, question: conv.body.opening.question }))
+    } else {
+      verdict(vp, 'conv-real-failure-shown', /Your words are kept/.test(shown.error || '') && shown.words === TEXT, JSON.stringify({ http: conv.status, failure: conv.body.failure }))
+    }
+  } else if (real.body.decision === 'PROCEED') {
+    const callsReal = await counts(page)
+    verdict(vp, 'conv-real-unconfigured', (await state(page)).stage === 'gate' && callsReal.conv === 0, 'PROCEED without a qualification stays at the diagnostic; no model request')
+  }
+  verdict(vp, 'gate-real-matches', dom.word === real.body.decision && JSON.stringify(dom.signals) === JSON.stringify(wantReal), gateReal)
+}
+
+// --- the first conversation ---------------------------------------------------------
+
+/** Text that cannot fit at the floor size is paged, so what is on screen is the whole or a leading page of it. */
+const whole = (shown, full) => shown === full || Boolean(shown && full.startsWith(shown))
+
+const SHORT_OPENING = {
+  describes: 'problem',
+  uncertainty: 'What it would change for the people who retype the orders.',
+  reflection: 'Orders arrive over WhatsApp and get retyped by hand into a notebook, so some are lost on the way.',
+  question: 'When one does get lost, what is the part you most need to stop happening?',
+}
+// The longest reply the server will accept: nothing may be cut, and nothing may scroll.
+const LONG_OPENING = {
+  describes: 'problem',
+  uncertainty: 'What the clinic would notice first if double booking stopped.',
+  reflection: 'You run a clinic with three doctors where the front desk books by phone into a paper agenda, so patients get double booked and nobody can see tomorrow’s list. A shared spreadsheet did not hold because the receptionists forget to update it, and the cost shows up as empty slots.',
+  question: 'If the receptionists no longer had to remember to update anything and every patient arrived on the right day, what would be the first thing you would notice changing across the clinic, for the doctors and for the people waiting?',
+}
+const SPANISH_OPENING = {
+  describes: 'solution',
+  uncertainty: 'Qué cambiaría para el equipo.',
+  reflection: 'Quieres que tus clientes reserven sin llamar al local, para que el teléfono deje de ser el único camino.',
+  question: '¿Qué te gustaría que fuera distinto para tu equipo cuando los clientes reserven solos?',
+}
+for (const o of [SHORT_OPENING, LONG_OPENING, SPANISH_OPENING]) {
+  const v = validateOpening(o)
+  if (!v.ok) throw new Error('fixture is not a valid opening: ' + v.reason)
+}
+
+const convOk = opening => ({ schema: 'compascaribe.conversation/1', status: 'ok', opening, model: 'claude-sonnet-5-5', usage: { inputTokens: 640, outputTokens: 150 }, latencyMs: 2140 })
+const convFail = kind => ({ schema: 'compascaribe.conversation/1', status: 'unavailable', failure: { kind } })
+const proceedWithQualification = () => ({ ...GATE_CASES[0].body, qualification: { token: 'e2e-qualification', expiresAt: Date.now() + 3600000 } })
+const setConv = (page, stub) => evaluate(page, `(window.__conv.stub = ${JSON.stringify(stub)}, window.__conv.calls = 0, true)`)
+const counts = page => evaluate(page, 'JSON.stringify({ gate: window.__gate.calls, conv: window.__conv.calls, last: window.__conv.last })').then(JSON.parse)
+const READY = 'window.__cc.state.stage === "conversation" && window.__cc.state.opening.status === "ready" && !window.__cc.state.busy'
+
+async function fillReply(page, text) {
+  await evaluate(page, `(() => { const ta = document.querySelector('#reply'); ta.focus(); ta.value = ${JSON.stringify(text)}; ta.dispatchEvent(new Event('input', {bubbles: true})); return true })()`)
+}
+
+const convDom = page => evaluate(page, `JSON.stringify((() => {
+  const t = s => (document.querySelector(s) || {}).textContent
+  const rect = s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, w: r.width, h: r.height } }
+  const ta = document.querySelector('#reply')
+  const send = [...document.querySelectorAll('.composer .btn-primary')][0]
+  const sr = send ? send.getBoundingClientRect() : null
+  return {
+    words: t('.conv-words .prose'),
+    reflection: t('.conv-said .reflection'),
+    question: t('#q'),
+    reflectionPager: !!document.querySelector('.conv-said .reflection ~ .paged-pager .pager, .conv-ai .paged-pager .pager'),
+    questionPager: !!document.querySelector('.conv-said > .paged .paged-pager .pager'),
+    hasComposer: !!ta,
+    max: ta ? ta.maxLength : null,
+    sendVisible: !!sr && sr.top >= 0 && sr.bottom <= window.innerHeight && sr.right <= window.innerWidth && sr.height >= 36,
+    wordsHidden: getComputedStyle(document.querySelector('.conv-words') || document.body).display === 'none',
+    head: t('.ply-head'),
+    foot: [...document.querySelectorAll('.ply-foot button')].map(e => e.textContent.trim()),
+    footShown: !!document.querySelector('.ply-foot') && getComputedStyle(document.querySelector('.ply-foot')).display !== 'none',
+    bar: t('.bar'),
+    route: document.querySelectorAll('.route, .route-bar').length,
+    error: t('.conv .error'),
+    notice: t('.conv-notice'),
+    answer: t('.conv-answer .prose'),
+    steps: [...document.querySelectorAll('.step')].map(e => e.textContent),
+    q: rect('#q'),
+  }
+})())`).then(JSON.parse)
+
+/**
+ * Begin with the gate answering PROCEED + a qualification and the conversation
+ * route answering with `stub`. Resolves once the conversation stage is showing.
+ */
+async function beginConversation(page, text, stub, { wait = READY, delayMs = 0 } = {}) {
+  await navigate(page, `${BASE}/?fast&fresh`)
+  await waitFor(page, 'window.__cc && window.__cc.state.stage === "welcome"')
+  await setGate(page, { status: 200, body: proceedWithQualification() })
+  await setConv(page, { ...stub, delayMs })
+  await fillWelcome(page, text)
+  await click(page, '.btn-primary')
+  if (wait) await waitFor(page, wait, { timeout: 10000 })
+}
+
+async function conversationScenarios(page, vp) {
+  const tiny = vp.height < 420
+  const short = vp.height < 600
+  const shotAudit = (label) => auditAndShoot(page, vp, `conv-${label}`)
+
+  // 1. A short submission and a short reply: everything visible, words exact, the field ready.
+  await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) })
+  let d = await convDom(page)
+  let c = await counts(page)
+  await shotAudit('short')
+  verdict(vp, 'conv-words-exact', d.words === TEXT, JSON.stringify({ words: (d.words || '').slice(0, 60) }))
+  // With the keyboard open on a phone the reading moves behind "Full exchange"; the question is always on the page.
+  const readingParked = tiny && vp.width < 560
+  verdict(vp, 'conv-model-text', (readingParked || whole(d.reflection, SHORT_OPENING.reflection)) && whole(d.question, SHORT_OPENING.question) && ((d.reflection === SHORT_OPENING.reflection && d.question === SHORT_OPENING.question) || d.reflectionPager || d.questionPager), JSON.stringify({ r: (d.reflection || '').slice(0, 40), q: (d.question || '').slice(0, 40) }))
+  verdict(vp, 'conv-one-question', (d.question.match(/\?/g) || []).length === 1 && !d.reflection.includes('?'), d.question)
+  verdict(vp, 'conv-field-ready', d.hasComposer && d.max === 480 && d.sendVisible, JSON.stringify({ composer: d.hasComposer, max: d.max, send: d.sendVisible }))
+  verdict(vp, 'conv-requests', c.gate === 1 && c.conv === 1 && c.last.text === TEXT && c.last.qualification === 'e2e-qualification', JSON.stringify(c))
+  verdict(vp, 'conv-not-simulated', /Live · AI reply/.test(d.bar) && !/simulated/i.test(d.bar + d.head) && d.route === 0, JSON.stringify({ bar: d.bar, route: d.route }))
+  // On roomy screens the words and the reading are on screen together.
+  if (!short) verdict(vp, 'conv-together', !d.wordsHidden && d.q && d.q.top > 0, JSON.stringify({ wordsHidden: d.wordsHidden }))
+  if (tiny && vp.width < 560) verdict(vp, 'conv-tiny-compact', d.wordsHidden && !d.footShown && /Full exchange/.test(d.head) && /Edit your words/.test(d.head), JSON.stringify({ hidden: d.wordsHidden, foot: d.footShown, head: d.head }))
+
+  // 2. Answer: a long answer grows the field then pages; Send records it; nothing leaves the browser.
+  await fillReply(page, LONG)
+  await sleep(120)
+  await shotAudit('typing-long')
+  const typed = await evaluate(page, 'JSON.stringify({ len: document.querySelector("#reply").value.length, sendOk: (() => { const r = document.querySelector(".composer .btn-primary").getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight })() })').then(JSON.parse)
+  verdict(vp, 'conv-typed-kept', typed.len === LONG.length && typed.sendOk, JSON.stringify(typed))
+  const before = await counts(page)
+  await click(page, '.composer .btn-primary')
+  await sleep(120)
+  d = await convDom(page)
+  c = await counts(page)
+  await shotAudit('answered')
+  const turns = await evaluate(page, 'window.__cc.state.ctx.conversation.turns.length')
+  const answerPager = await evaluate(page, '!!document.querySelector(".conv-answer .pager")')
+  verdict(vp, 'conv-answered', turns === 2 && !d.hasComposer && /not connected yet/.test(d.notice || '') && (d.answer === LONG || (answerPager && LONG.startsWith(d.answer))), JSON.stringify({ turns, notice: d.notice, answer: (d.answer || '').slice(0, 40), answerPager }))
+  verdict(vp, 'conv-answer-stays-local', c.gate === before.gate && c.conv === before.conv, JSON.stringify({ before, after: c }))
+  await clickText(page, 'Edit your answer')
+  await sleep(100)
+  d = await convDom(page)
+  const refilled = await evaluate(page, 'document.querySelector("#reply") && document.querySelector("#reply").value')
+  await shotAudit('answer-editing')
+  verdict(vp, 'conv-answer-editable', refilled === LONG && d.hasComposer, JSON.stringify({ len: refilled && refilled.length }))
+  await evaluate(page, 'window.__cc.actions.sendReply(); true')
+  await sleep(80)
+
+  // 3. The exchange in full, page by page.
+  await evaluate(page, 'window.__cc.actions.openOverlay("exchange", 0); true')
+  await sleep(150)
+  const pages = Number((await evaluate(page, '(document.querySelector(".overlay .pager span") || {}).textContent || "1 / 1"')).split('/')[1]) || 1
+  await shotAudit('exchange-1')
+  for (let p2 = 1; p2 < pages; p2++) {
+    await evaluate(page, `window.__cc.actions.overlayPage(${p2}); true`)
+    await sleep(150)
+    await shotAudit(`exchange-${p2 + 1}`)
+  }
+  await evaluate(page, 'window.__cc.actions.closeOverlay(); true')
+
+  // 4. The longest submission with the longest reply the server accepts.
+  await beginConversation(page, LONG, { status: 200, body: convOk(LONG_OPENING) })
+  await sleep(150)
+  d = await convDom(page)
+  await shotAudit('long')
+  const full = (d.reflection || '').length + (d.question || '').length
+  verdict(vp, 'conv-long-intact', d.words === LONG && (d.reflectionPager || d.questionPager || (d.reflection === LONG_OPENING.reflection && d.question === LONG_OPENING.question)), JSON.stringify({ rp: d.reflectionPager, qp: d.questionPager, full }))
+  await evaluate(page, 'window.__cc.actions.openOverlay("words", 0); true')
+  await sleep(150)
+  await shotAudit('long-words')
+  await evaluate(page, 'window.__cc.actions.closeOverlay(); true')
+  await fillReply(page, LONG)
+  await sleep(120)
+  await shotAudit('long-typing')
+  await evaluate(page, 'window.__cc.actions.sendReply(); true')
+  await sleep(100)
+  await shotAudit('long-answered')
+
+  // 5. Another language is displayed as written.
+  await beginConversation(page, 'Quiero que mis clientes reserven sin llamar al local', { status: 200, body: convOk(SPANISH_OPENING) })
+  d = await convDom(page)
+  await shotAudit('spanish')
+  verdict(vp, 'conv-spanish', d.question === SPANISH_OPENING.question, d.question)
+
+  // 6. While the model works: restrained, accurate feedback, the words in view, nothing claimed.
+  await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) }, { wait: 'window.__cc.state.stage === "conversation" && window.__cc.state.opening.status === "generating"', delayMs: 1500 })
+  await sleep(100)
+  d = await convDom(page)
+  await shotAudit('generating')
+  verdict(vp, 'conv-generating', d.steps.join('|') === 'Preparing a reply' && !d.reflection && !d.question && d.words === TEXT && !/understand|analy|read/i.test(d.steps.join(' ')), JSON.stringify({ steps: d.steps, words: (d.words || '').slice(0, 30) }))
+  // Leaving cancels: the late reply is not shown and the words are kept.
+  await clickText(page, 'Edit your words')
+  await settle(page, 's.stage === "welcome"')
+  await sleep(1700)
+  const kept = await evaluate(page, 'document.querySelector("#describe").value')
+  const after = await state(page)
+  verdict(vp, 'conv-cancel', after.stage === 'welcome' && kept === TEXT, JSON.stringify({ stage: after.stage }))
+
+  // 7. Repeated Begin: one gate, one model request.
+  await navigate(page, `${BASE}/?fast&fresh`)
+  await waitFor(page, 'window.__cc && window.__cc.state.stage === "welcome"')
+  await setGate(page, { status: 200, body: proceedWithQualification(), delayMs: 300 })
+  await setConv(page, { status: 200, body: convOk(SHORT_OPENING), delayMs: 400 })
+  await fillWelcome(page, TEXT)
+  await evaluate(page, '(() => { const b = document.querySelector(".btn-primary"); b.click(); b.click(); b.click(); return true })()')
+  await waitFor(page, READY, { timeout: 10000 })
+  await sleep(300)
+  c = await counts(page)
+  verdict(vp, 'conv-no-duplicate-begin', c.gate === 1 && c.conv === 1, JSON.stringify(c))
+  // Back, then Begin again with the same words: the reply is reused, nothing is requested.
+  await evaluate(page, 'window.__cc.actions.back(); true')
+  await settle(page, 's.stage === "welcome"')
+  await click(page, '.btn-primary')
+  await settle(page, 's.stage === "conversation"')
+  await sleep(200)
+  c = await counts(page)
+  verdict(vp, 'conv-no-duplicate-reuse', c.gate === 1 && c.conv === 1, JSON.stringify(c))
+  // A reload resumes the exchange without asking anything again.
+  await navigate(page, `${BASE}/?fast`)
+  await waitFor(page, 'window.__cc && window.__cc.state.stage === "conversation"')
+  c = await counts(page)
+  d = await convDom(page)
+  await shotAudit('reloaded')
+  verdict(vp, 'conv-reload', c.gate === 0 && c.conv === 0 && d.question === SHORT_OPENING.question && d.words === TEXT, JSON.stringify({ c, q: (d.question || '').slice(0, 30) }))
+
+  // 7b. The keyboard opening and closing is a viewport change on the same page: the reading parks and returns intact.
+  if (vp.width < 560 && vp.height >= 560) {
+    await beginConversation(page, TEXT, { status: 200, body: convOk(SHORT_OPENING) })
+    await setViewport(page, { ...vp, height: 330 })
+    await sleep(250)
+    await evaluate(page, 'window.__cc.layout(); true')
+    await sleep(100)
+    d = await convDom(page)
+    await shotAudit('keyboard-opened')
+    const open = await evaluate(page, 'JSON.stringify({ issues: window.__cc.audit().issues.length, tiny: document.documentElement.dataset.tiny, qVisible: (() => { const r = document.querySelector("#q").getBoundingClientRect(); return r.bottom > 0 && r.bottom <= window.innerHeight })(), sendVisible: (() => { const r = document.querySelector(".composer .btn-primary").getBoundingClientRect(); return r.bottom <= window.innerHeight })() })').then(JSON.parse)
+    await setViewport(page, vp)
+    await sleep(250)
+    await evaluate(page, 'window.__cc.layout(); true')
+    await sleep(100)
+    const closed = await convDom(page)
+    await shotAudit('keyboard-closed')
+    verdict(vp, 'conv-keyboard', open.tiny === 'true' && open.issues === 0 && open.qVisible && open.sendVisible && closed.reflection === SHORT_OPENING.reflection && closed.question === SHORT_OPENING.question && !closed.reflectionPager, JSON.stringify({ open, reflection: (closed.reflection || '').slice(0, 30), pager: closed.reflectionPager }))
+  }
+
+  // 8. A failed reply keeps the words and offers a way forward; Try again asks once more.
+  for (const kind of ['timeout', 'configuration']) {
+    await beginConversation(page, LONG, { status: 503, body: convFail(kind) }, { wait: 'window.__cc.state.stage === "conversation" && window.__cc.state.opening.status === "failed" && !window.__cc.state.busy' })
+    d = await convDom(page)
+    await shotAudit(`failed-${kind}`)
+    verdict(vp, `conv-failed-${kind}`, /Your words are kept/.test(d.error || '') && d.words === LONG && d.footShown && d.foot.includes('Try again'), JSON.stringify({ error: d.error, foot: d.foot }))
+  }
+  await setConv(page, { status: 200, body: convOk(SHORT_OPENING) })
+  await clickText(page, 'Try again')
+  await waitFor(page, READY, { timeout: 8000 })
+  c = await counts(page)
+  d = await convDom(page)
+  verdict(vp, 'conv-retry', c.conv === 1 && c.gate === 1 && d.question === SHORT_OPENING.question, JSON.stringify(c))
+
+  // 9. BLOCK and UNAVAILABLE never reach the model, even if an envelope carries a qualification.
+  for (const [label, body, status] of [
+    ['block', { ...GATE_CASES[1].body, qualification: { token: 'x', expiresAt: Date.now() + 3600000 } }, 200],
+    ['unavailable', GATE_CASES[3].body, 503],
+  ]) {
+    await navigate(page, `${BASE}/?fast&fresh`)
+    await waitFor(page, 'window.__cc && window.__cc.state.stage === "welcome"')
+    await setGate(page, { status, body })
+    await setConv(page, { status: 200, body: convOk(SHORT_OPENING) })
+    await fillWelcome(page, 'What is the capital of France?')
+    await click(page, '.btn-primary')
+    await waitFor(page, 'window.__cc.state.stage === "gate" && window.__cc.state.gate && !window.__cc.state.busy')
+    await sleep(300)
+    c = await counts(page)
+    d = await evaluate(page, 'document.querySelector(".gate-word") && document.querySelector(".gate-word").textContent')
+    verdict(vp, `conv-${label}-no-model`, c.conv === 0 && d === body.decision, JSON.stringify({ conv: c.conv, shown: d }))
+  }
 }
 
 async function fullJourney(page, vp) {
@@ -591,8 +889,15 @@ try {
     await page.send('Page.addScriptToEvaluateOnNewDocument', { source: GATE_HOOK })
     await setViewport(page, vp)
     try {
+      if (args.conv) {
+        // Only the first conversation (flag --conv), for quick iteration on its layout.
+        await conversationScenarios(page, vp)
+        page.close()
+        continue
+      }
       await landingLimits(page, vp)
       await gateScenarios(page, vp)
+      await conversationScenarios(page, vp)
       // The simulated flow behind the gate is entered from a saved journey, which needs the dev server's modules.
       if (!DEV) {
         page.close()

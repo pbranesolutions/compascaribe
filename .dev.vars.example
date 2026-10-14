@@ -1,6 +1,9 @@
 # Copy to .dev.vars (git-ignored) for `npm run dev` and `npm run preview`.
 # In production set the secret with: npx wrangler secret put TYPESAFE_API_KEY
 TYPESAFE_API_KEY=
+# Claude (the first conversation). Server-side only. Without it PROCEED stays at the diagnostic.
+# In production: npx wrangler secret put ANTHROPIC_API_KEY
+ANTHROPIC_API_KEY=
 
 # Optional overrides (defaults live in src/domain/gate/config.js):
 # JEV_MODEL=jev-latest
@@ -12,3 +15,15 @@ TYPESAFE_API_KEY=
 # GATE_SPAM_INTENT_CEILING=0.50
 # GATE_IRRELEVANCE_BLOCK=0.90
 # GATE_IRRELEVANCE_INTENT_CEILING=0.40
+
+# First conversation (defaults live in src/domain/conversation/config.js):
+# CONVERSATION_MODEL=claude-sonnet-5-5
+# CONVERSATION_EFFORT=low
+# CONVERSATION_MAX_TOKENS=1500
+# CONVERSATION_TIMEOUT_MS=25000
+# CONVERSATION_ENABLED=true
+# CONVERSATION_QUALIFICATION_TTL_MS=900000
+# CONVERSATION_MAX_ATTEMPTS=3
+# CONVERSATION_RATE_MAX=12
+# Optional dedicated signing key for qualifications (16+ chars); otherwise derived from TYPESAFE_API_KEY.
+# QUALIFICATION_SECRET=

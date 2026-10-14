@@ -44,6 +44,18 @@ export function parseGateResult(body) {
   }
 }
 
+/**
+ * The qualification a PROCEED may carry: the Worker's signed statement that
+ * these words passed. Opaque to the browser; it is only handed back to the
+ * conversation endpoint, which verifies it. Anything else yields null.
+ */
+export function parseQualification(body, result) {
+  const q = body && typeof body === 'object' ? body.qualification : null
+  if (!result || result.decision !== 'PROCEED' || !q || typeof q !== 'object') return null
+  if (typeof q.token !== 'string' || !q.token || q.token.length > 2048 || !isCount(q.expiresAt)) return null
+  return { token: q.token, expiresAt: q.expiresAt }
+}
+
 function localUnavailable(kind, requestedModel = '') {
   return {
     schema: GATE_SCHEMA, decision: 'UNAVAILABLE', rule: null, trace: [], signals: null, thresholds: {},
@@ -53,13 +65,13 @@ function localUnavailable(kind, requestedModel = '') {
 
 /**
  * @param {{ endpoint?: string, fetchImpl?: typeof fetch, timeoutMs?: number }} [options]
- * @returns {{ classify(text: string): Promise<{ rejected: 'empty'|'too_long'|'not_text' } | { result: object }> }}
+ * @returns {{ classify(text: string): Promise<{ rejected: 'empty'|'too_long'|'not_text' } | { result: object, qualification: { token: string, expiresAt: number } | null }> }}
  */
 export function createGateClient({ endpoint = GATE_PATH, fetchImpl, timeoutMs = 25000 } = {}) {
   return {
     async classify(text) {
       const doFetch = fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null)
-      if (!doFetch) return { result: localUnavailable('network') }
+      if (!doFetch) return { result: localUnavailable('network'), qualification: null }
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), timeoutMs)
       try {
@@ -77,11 +89,11 @@ export function createGateClient({ endpoint = GATE_PATH, fetchImpl, timeoutMs = 
           /* handled below */
         }
         const result = parseGateResult(body)
-        if (result) return { result }
+        if (result) return { result, qualification: parseQualification(body, result) }
         if (res.status === 400 && body && ['empty', 'too_long', 'not_text'].includes(body.error)) return { rejected: body.error }
-        return { result: localUnavailable(res.status === 429 ? 'rate_limited' : 'malformed') }
+        return { result: localUnavailable(res.status === 429 ? 'rate_limited' : 'malformed'), qualification: null }
       } catch {
-        return { result: localUnavailable(controller.signal.aborted ? 'timeout' : 'network') }
+        return { result: localUnavailable(controller.signal.aborted ? 'timeout' : 'network'), qualification: null }
       } finally {
         clearTimeout(timer)
       }

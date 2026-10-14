@@ -1,0 +1,101 @@
+// Proof that a submission passed the Jev gate.
+//
+// The browser cannot be trusted to say "Jev returned PROCEED", so the Worker
+// signs that fact when it is true and the conversation endpoint refuses to
+// generate anything without it. A qualification names the exact words it was
+// issued for (by hash), is good for a few minutes, and carries no secret: it is
+// an HMAC-SHA256 over a small JSON payload.
+//
+// Runs wherever Web Crypto exists (the Worker, node). The key never leaves the
+// server and is never derived from anything the browser sends.
+
+export const QUALIFICATION_SCHEMA = 'compascaribe.qualification/1'
+
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
+
+function toBase64Url(bytes) {
+  let s = ''
+  for (const b of bytes) s += String.fromCharCode(b)
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function fromBase64Url(text) {
+  if (!/^[A-Za-z0-9_-]+$/.test(text)) throw new Error('not base64url')
+  const padded = text.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (text.length % 4)) % 4)
+  const bin = atob(padded)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+
+async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(text))
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * The signing secret: QUALIFICATION_SECRET when set, otherwise derived (with a
+ * domain label, so the two uses cannot be confused) from the Jev key the Worker
+ * already has. Without either there is nothing to sign with, and no
+ * qualification can be issued or verified.
+ */
+export function signingSecret(env = {}) {
+  const dedicated = typeof env.QUALIFICATION_SECRET === 'string' ? env.QUALIFICATION_SECRET.trim() : ''
+  if (dedicated.length >= 16) return dedicated
+  const jev = typeof env.TYPESAFE_API_KEY === 'string' ? env.TYPESAFE_API_KEY.trim() : ''
+  return jev ? `${QUALIFICATION_SCHEMA}:${jev}` : ''
+}
+
+const importKey = secret => crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify'])
+
+/**
+ * @param {{ text: string, secret: string, gateModel?: string|null, ttlMs: number, now?: () => number }} input
+ * @returns {Promise<{ token: string, expiresAt: number } | null>}  null when there is no secret to sign with
+ */
+export async function issueQualification({ text, secret, gateModel = null, ttlMs, now = Date.now }) {
+  if (!secret) return null
+  const issuedAt = now()
+  const payload = {
+    s: QUALIFICATION_SCHEMA,
+    d: 'PROCEED',
+    h: await sha256Hex(text),
+    g: gateModel,
+    i: issuedAt,
+    e: issuedAt + ttlMs,
+    j: crypto.randomUUID(),
+  }
+  const body = toBase64Url(encoder.encode(JSON.stringify(payload)))
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', await importKey(secret), encoder.encode(body)))
+  return { token: `${body}.${toBase64Url(sig)}`, expiresAt: payload.e }
+}
+
+/**
+ * @param {{ token: unknown, text: string, secret: string, now?: () => number }} input
+ * @returns {Promise<{ ok: true, id: string, expiresAt: number } | { ok: false, reason: 'missing'|'malformed'|'signature'|'expired'|'text' }>}
+ */
+export async function verifyQualification({ token, text, secret, now = Date.now }) {
+  if (typeof token !== 'string' || !token || !secret) return { ok: false, reason: 'missing' }
+  const parts = token.split('.')
+  if (parts.length !== 2 || token.length > 2048) return { ok: false, reason: 'malformed' }
+  let claims
+  let sig
+  try {
+    sig = fromBase64Url(parts[1])
+    claims = JSON.parse(decoder.decode(fromBase64Url(parts[0])))
+  } catch {
+    return { ok: false, reason: 'malformed' }
+  }
+  // Web Crypto's verify is constant-time.
+  let valid = false
+  try {
+    valid = await crypto.subtle.verify('HMAC', await importKey(secret), sig, encoder.encode(parts[0]))
+  } catch {
+    valid = false
+  }
+  if (!valid) return { ok: false, reason: 'signature' }
+  if (!claims || claims.s !== QUALIFICATION_SCHEMA || claims.d !== 'PROCEED' || typeof claims.j !== 'string' || typeof claims.e !== 'number') return { ok: false, reason: 'malformed' }
+  if (now() >= claims.e) return { ok: false, reason: 'expired' }
+  if (claims.h !== (await sha256Hex(text))) return { ok: false, reason: 'text' }
+  return { ok: true, id: claims.j, expiresAt: claims.e }
+}

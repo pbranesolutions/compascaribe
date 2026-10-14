@@ -20,6 +20,7 @@ export const REFINEMENTS = Object.freeze([
 export const OVERLAY_TITLES = Object.freeze({
   review: 'Understanding so far',
   words: 'Your words',
+  exchange: 'The exchange',
   drafts: 'Statement drafts',
   notes: 'Prototype notes',
   record: 'Handoff record',

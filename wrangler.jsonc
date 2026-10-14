@@ -14,18 +14,27 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  // Non-secret gate settings. The model is configurable here; thresholds and limits
-  // have documented defaults in src/domain/gate/config.js (override with GATE_* vars).
-  // TYPESAFE_API_KEY is a secret: `wrangler secret put TYPESAFE_API_KEY`, or .dev.vars locally.
+  // Non-secret settings. The models are configurable here; thresholds and limits have
+  // documented defaults in src/domain/gate/config.js (GATE_* vars) and
+  // src/domain/conversation/config.js (CONVERSATION_* vars).
+  // Secrets, never committed: `wrangler secret put TYPESAFE_API_KEY` (Jev) and
+  // `wrangler secret put ANTHROPIC_API_KEY` (Claude), or .dev.vars locally.
   "vars": {
-    "JEV_MODEL": "jev-latest"
+    "JEV_MODEL": "jev-latest",
+    "CONVERSATION_MODEL": "claude-sonnet-5-5"
   },
-  // Abuse protection for /api/gate: 10 classifications per minute per visitor IP.
+  // Abuse and cost protection per visitor IP: 10 classifications and 6 generated
+  // replies per minute (a reply is a billed model request).
   "ratelimits": [
     {
       "name": "GATE_LIMITER",
       "namespace_id": "1001",
       "simple": { "limit": 10, "period": 60 }
+    },
+    {
+      "name": "CONVERSATION_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 6, "period": 60 }
     }
   ],
   "routes": [

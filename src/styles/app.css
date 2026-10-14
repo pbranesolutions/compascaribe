@@ -565,7 +565,7 @@ html[data-tiny='true'] .is-welcome .ply-body { gap: 6px; }
 .question.is-hero .hl { color: var(--accent); white-space: nowrap; }
 .welcome-note::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 9px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
 
-.is-welcome .composer {
+:is(.is-welcome, .is-conversation) .composer {
   display: block;
   max-width: 760px;
   background: color-mix(in oklab, var(--ink) 9%, var(--surface));
@@ -573,33 +573,33 @@ html[data-tiny='true'] .is-welcome .ply-body { gap: 6px; }
   border-radius: var(--radius);
   transition: border-color var(--t-ui) var(--ease), box-shadow var(--t-ui) var(--ease);
 }
-.is-welcome .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent); }
-.is-welcome .ta-frame { height: auto; min-height: 0; padding: 14px 16px 4px; background: transparent; border: 0; }
-.is-welcome .composer textarea { font-family: var(--font-headline); font-weight: 400; font-size: 20px; line-height: 28px; }
-.is-welcome .composer textarea::placeholder { font-style: normal; color: color-mix(in oklab, var(--ink) 68%, var(--surface)); }
-.is-welcome .composer-meta { display: flex; align-items: center; gap: 12px; min-height: 0; padding: 6px 10px 10px 16px; }
-.is-welcome .composer-meta .note { flex: 1 1 auto; min-width: 0; }
-.is-welcome .meta-end { display: contents; }
-.is-welcome .count:empty, .is-welcome .folio:empty { display: none; }
-.is-welcome .count { font: 400 14px/1 var(--font-headline); letter-spacing: 0; white-space: nowrap; }
-.is-welcome .count b { font-weight: 600; }
-.is-welcome .btn-primary { flex: none; min-height: 48px; padding: 0 30px; background: var(--accent); color: var(--indigo); font-size: 17px; font-weight: 600; }
-.is-welcome .btn-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 84%, white); }
+:is(.is-welcome, .is-conversation) .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent); }
+:is(.is-welcome, .is-conversation) .ta-frame { height: auto; min-height: 0; padding: 14px 16px 4px; background: transparent; border: 0; }
+:is(.is-welcome, .is-conversation) .composer textarea { font-family: var(--font-headline); font-weight: 400; font-size: 20px; line-height: 28px; }
+:is(.is-welcome, .is-conversation) .composer textarea::placeholder { font-style: normal; color: color-mix(in oklab, var(--ink) 68%, var(--surface)); }
+:is(.is-welcome, .is-conversation) .composer-meta { display: flex; align-items: center; gap: 12px; min-height: 0; padding: 6px 10px 10px 16px; }
+:is(.is-welcome, .is-conversation) .composer-meta .note { flex: 1 1 auto; min-width: 0; }
+:is(.is-welcome, .is-conversation) .meta-end { display: contents; }
+:is(.is-welcome, .is-conversation) .count:empty, :is(.is-welcome, .is-conversation) .folio:empty { display: none; }
+:is(.is-welcome, .is-conversation) .count { font: 400 14px/1 var(--font-headline); letter-spacing: 0; white-space: nowrap; }
+:is(.is-welcome, .is-conversation) .count b { font-weight: 600; }
+:is(.is-welcome, .is-conversation) .btn-primary { flex: none; min-height: 48px; padding: 0 30px; background: var(--accent); color: var(--indigo); font-size: 17px; font-weight: 600; }
+:is(.is-welcome, .is-conversation) .btn-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--accent) 84%, white); }
 @media (max-width: 599px) {
-  .ply.is-welcome .composer { max-width: none; }
-  .is-welcome .ta-frame { padding: 12px 12px 4px; }
-  .is-welcome .composer textarea { font-size: 18px; line-height: 26px; }
-  .is-welcome .composer-meta { padding: 4px 8px 8px; }
-  .is-welcome .composer-meta .note { display: none; }
-  .is-welcome .count .long { display: none; }
-  .is-welcome .btn-primary { flex: 1 1 auto; }
+  .ply:is(.is-welcome, .is-conversation) .composer { max-width: none; }
+  :is(.is-welcome, .is-conversation) .ta-frame { padding: 12px 12px 4px; }
+  :is(.is-welcome, .is-conversation) .composer textarea { font-size: 18px; line-height: 26px; }
+  :is(.is-welcome, .is-conversation) .composer-meta { padding: 4px 8px 8px; }
+  :is(.is-welcome, .is-conversation) .composer-meta .note { display: none; }
+  :is(.is-welcome, .is-conversation) .count .long { display: none; }
+  :is(.is-welcome, .is-conversation) .btn-primary { flex: 1 1 auto; }
 }
-.is-welcome .error-slot { max-width: 760px; }
-.is-welcome .error { font-family: var(--font-headline); font-size: 16px; line-height: 1.35; }
-html[data-short='true'] .is-welcome .composer textarea { font-size: 18px; line-height: 26px; }
-html[data-short='true'] .is-welcome .btn-primary { min-height: 42px; }
-html[data-tiny='true'] .is-welcome .composer textarea { font-size: 17px; line-height: 24px; }
-html[data-tiny='true'] .is-welcome .btn-primary { min-height: 40px; }
+:is(.is-welcome, .is-conversation) .error-slot { max-width: 760px; }
+:is(.is-welcome, .is-conversation) .error { font-family: var(--font-headline); font-size: 16px; line-height: 1.35; }
+html[data-short='true'] :is(.is-welcome, .is-conversation) .composer textarea { font-size: 18px; line-height: 26px; }
+html[data-short='true'] :is(.is-welcome, .is-conversation) .btn-primary { min-height: 42px; }
+html[data-tiny='true'] :is(.is-welcome, .is-conversation) .composer textarea { font-size: 17px; line-height: 24px; }
+html[data-tiny='true'] :is(.is-welcome, .is-conversation) .btn-primary { min-height: 40px; }
 /* Own-words composer: two lines, same look. */
 .composer.is-short .ta-frame { height: auto; padding: 8px 12px; }
 #own { font-size: 17px; line-height: 24px; }
@@ -772,3 +772,97 @@ html[data-short='true'] .gate-telemetry { gap: 2px 14px; padding-top: 5px; }
 html[data-short='true'] .gate-telemetry dd { font-size: 11px; }
 html[data-short='true'] .gate-decision { gap: 0; }
 html[data-short='true'] .gate .ply-body { gap: 6px; }
+
+/* --------------------------------------------------------------------------
+   First conversation (presentation lives in src/ui/conversation.js).
+   One exchange at a time: what the visitor wrote, what Compás Caribe took from
+   it, the one question, and the field for the answer. The visitor's words are
+   a one-tap preview with the full text behind it; nothing here scrolls.
+-------------------------------------------------------------------------- */
+
+.conv { grid-template-rows: auto minmax(0, 1fr); align-content: stretch; gap: 14px; }
+.conv-said, .conv-reply { display: grid; gap: 10px; align-content: start; min-width: 0; min-height: 0; }
+.conv-reply { gap: 8px; }
+.conv-said > .paged, .conv-reply > .paged { min-height: 0; }
+
+.conv-words { display: grid; gap: 4px; min-width: 0; text-align: left; align-content: start; }
+.conv-words .prose {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--muted);
+}
+.conv-words:hover .prose { color: var(--ink); }
+.conv-more { color: var(--faint); }
+.conv-speaker { display: block; margin-bottom: 4px; }
+
+.conv-said .reflection { font-size: 17px; }
+.conv-reply .conv-answer { display: grid; gap: 4px; min-width: 0; min-height: 0; }
+.conv-notice { color: var(--muted); font-size: 14px; line-height: 1.35; overflow: hidden; }
+.conv-wait { align-self: start; }
+/* Answered: the answer takes whatever the reading above leaves, and pages only if it truly cannot fit. */
+.conv-reply.is-answered { grid-template-rows: minmax(0, 1fr) auto; align-content: stretch; }
+.conv-reply.is-answered .conv-answer { grid-template-rows: auto minmax(0, 1fr); }
+.conv-links { display: inline-flex; align-items: baseline; gap: 16px; }
+.conv-only-compact, .conv-only-tiny { display: none; }
+.conv-m, .conv-s { display: none; }
+.conv-later { text-align: right; }
+.conv .error { margin: 0; }
+.is-conversation .btn-ghost.conv-edit { white-space: nowrap; }
+
+@media (max-width: 599px) { .conv { gap: 12px; } }
+
+/* Medium heights: the words shrink to two lines. */
+html[data-medium='true'] .conv-words .prose { -webkit-line-clamp: 2; }
+
+/* Short windows: the preview is one or two lines, speaker labels go, the question gets its own room. */
+html[data-short='true'] .conv { gap: 8px; --q-max: 84px; }
+html[data-short='true'] .conv-said { gap: 6px; }
+html[data-short='true'] .conv-speaker { display: none; }
+html[data-short='true'] .conv-words .prose { -webkit-line-clamp: 2; font-size: 14px; }
+html[data-short='true'] .conv-said .reflection { font-size: 15px; }
+html[data-short='true'] .conv-only-compact { display: inline; }
+html[data-short='true'] .conv-l { display: none; }
+html[data-short='true'] .conv-m { display: inline; }
+html[data-short='true'] .conv-later { white-space: normal; max-width: 13em; }
+
+/* Wide and short (landscape phones, short desktop windows): the reading on the left, the answer on the right. */
+@media (min-width: 560px) and (max-height: 599px) {
+  .conv { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 28px; }
+  .conv-reply { align-content: start; }
+}
+
+/* Keyboard open or a very short window: the reading and the field only. The words and the way back move to the header. */
+html[data-tiny='true'] .conv { gap: 4px; --q-max: 56px; --r-max: 50px; }
+html[data-tiny='true'] :is(.is-asking, .is-answered) .conv-words { display: none; }
+html[data-tiny='true'] .is-answered .conv-ai { display: none; }
+@media (max-width: 559px) { html[data-short='true'] .is-answered .conv-ai { display: none; } }
+html[data-tiny='true'] .conv { --r-max: 58px; }
+html[data-tiny='true'] .conv-said { gap: 4px; }
+html[data-tiny='true'] .conv-said .reflection { font-size: 14px; }
+html[data-tiny='true'] .ply.is-asking { grid-template-rows: auto minmax(0, 1fr); }
+html[data-tiny='true'] .is-asking .ply-foot { display: none; }
+html[data-tiny='true'] .is-conversation .ply-head { display: flex; }
+html[data-tiny='true'] .is-conversation .ply-head .link { display: inline; }
+html[data-tiny='true'] .is-asking .conv-only-tiny { display: inline; }
+html[data-tiny='true'] .conv-m { display: none; }
+html[data-tiny='true'] .conv-s { display: inline; }
+html[data-tiny='true'] .conv .error { padding: 4px 10px; font-size: 14px; }
+/* Keyboard open on a phone held upright: the question is what is being answered, so it gets the room and the reading waits one tap away. */
+@media (max-width: 559px) {
+  html[data-tiny='true'] .is-asking .conv-ai { display: none; }
+  html[data-tiny='true'] .conv { --q-max: 108px; }
+}
+html[data-tiny='true'] .conv-notice { font-size: 13px; }
+@media (min-width: 560px) and (max-height: 419px) { html[data-tiny='true'] .conv { --q-max: 110px; --r-max: 96px; } }
+
+/* Roomy: the words get their breathing space, the question its scale. */
+@media (min-width: 900px) and (min-height: 700px) {
+  .conv { gap: 20px; }
+  .conv-said { gap: 14px; }
+  .conv-words .prose { font-size: 16px; }
+  .conv-said .reflection { font-size: 19px; }
+}

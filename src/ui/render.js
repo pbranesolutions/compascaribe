@@ -2,6 +2,7 @@
 // focus and announcements, fits text to its boxes, and (in audit mode) proves
 // nothing overflows after every render.
 
+import { latestOpening } from '../domain/context.js'
 import { FOCUS_TITLES, OVERLAY_TITLES } from '../domain/discovery/vocabulary.js'
 import { activeFocusKey, strip, topBar, understandingPly } from './components.js'
 import { clear, h } from './dom.js'
@@ -23,6 +24,7 @@ export function createRenderer({ root, live, journey, audit = false }) {
       s.ownWordsOpen, s.asideOpen, s.editorOpen, s.ctx.updatedAt, s.ctx.statement?.version || 0,
       s.receipt?.receiptId || null, s.notes.length, s.resumed, s.ctx.id, s.returnTo,
       s.gate ? [s.gate.decision, s.gate.latencyMs, s.gate.failure?.kind || null] : null,
+      s.opening.status, s.opening.failure, s.ctx.conversation?.turns?.length || 0,
     ])
   }
 
@@ -34,6 +36,11 @@ export function createRenderer({ root, live, journey, audit = false }) {
       return ex ? `${FOCUS_TITLES[ex.focus]}, question ${s.stepIndex + 1} of ${s.ctx.exchanges.length}. ${ex.question}` : ''
     }
     if (s.stage === 'statement') return `Project statement, draft ${s.ctx.statement?.version || 1}, ready to review.`
+    if (s.stage === 'conversation') {
+      const o = latestOpening(s.ctx)
+      if (o) return `Compás Caribe: ${o.reflection} ${o.question}`
+      return s.opening.status === 'failed' ? 'The reply could not be prepared. Your words are kept.' : 'Preparing a reply.'
+    }
     if (s.stage === 'gate') return s.gate ? `Classification complete. Decision: ${s.gate.decision}.` : 'Classifying your words.'
     if (s.stage === 'qualifying') return 'Reading your words.'
     if (s.stage === 'composing') return 'Writing your project statement.'
