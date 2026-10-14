@@ -444,7 +444,7 @@ export function overlay(state, actions) {
       page,
       onPage: p2 => actions.overlayPage(p2),
       focusKey: 'overlay-pager',
-      renderItem: ([k, v], i) => h('div', { class: 'row' }, h('span', { class: 'num' }, String(i + 1).padStart(2, '0')), h('span', null, h('span', { class: 'k' }, k), h('span', { class: 'v', style: { WebkitLineClamp: 'unset', display: 'block', fontSize: '16px', whiteSpace: 'pre-wrap' } }, v))),
+      renderItem: ([k, v], i) => h('div', { class: 'row row-exchange' }, h('span', { class: 'num' }, String(i + 1).padStart(2, '0')), h('span', null, h('span', { class: 'k' }, k), h('span', { class: 'v', style: { WebkitLineClamp: 'unset', display: 'block', fontSize: '17px', lineHeight: '1.45', whiteSpace: 'pre-wrap' } }, v))),
       label: 'Exchange',
     })
     footer = [h('span'), primary('Back', close, { autofocus: true })]

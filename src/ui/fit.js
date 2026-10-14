@@ -218,6 +218,7 @@ export function bindViewport(onChange) {
       root.dataset.short = h < 600 ? 'true' : 'false'
       root.dataset.medium = h >= 600 && h < 700 ? 'true' : 'false'
       root.dataset.tiny = h < 420 ? 'true' : 'false'
+      root.dataset.tall = h >= 900 ? 'true' : 'false'
       root.dataset.unusable = h < 220 ? 'true' : 'false'
       lastH = h
       lastW = w

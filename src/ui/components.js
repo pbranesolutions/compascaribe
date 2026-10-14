@@ -475,12 +475,15 @@ export function optionList({ options, selected, onSelect, ownWordsLabel, onOwnWo
  * get their own page and are type-fitted to it; a value that still does not
  * fit at the floor size is split across pages.
  */
-export function pagedList({ items, page, onPage, renderItem, label = 'Page', focusKey = 'pager' }) {
+export function pagedList({ items, page, onPage, renderItem, label = 'Page', focusKey = 'pager', units = ['entry', 'entries'] }) {
   const list = h('div', { class: 'ledger' })
   const slot = h('div', { class: 'paged-pager', style: { display: 'flex', justifyContent: 'flex-start', minHeight: '0' } })
   const wrap = h('div', { class: 'paged' }, list, slot)
+  // `wrap.page` may be changed by the caller before `paginate()` to turn the page without a re-render.
+  wrap.page = page
   wrap.paginate = () => {
     if (!wrap.isConnected) return
+    const page = wrap.page
     let els = items.map((it, i) => renderItem(it, i))
     for (const el of els) {
       if (el.dataset.fit) {
@@ -571,7 +574,7 @@ export function pagedList({ items, page, onPage, renderItem, label = 'Page', foc
         }
       }
     }
-    slot.replaceChildren(pages.length > 1 ? pager({ page: p, total: pages.length, onPage, label, focusKey }) : h('span', { class: 'label' }, `${items.length} ${items.length === 1 ? 'entry' : 'entries'}`))
+    slot.replaceChildren(pages.length > 1 ? pager({ page: p, total: pages.length, onPage, label, focusKey }) : h('span', { class: 'label' }, `${items.length} ${items.length === 1 ? units[0] : units[1]}`))
   }
   return wrap
 }
@@ -597,7 +600,11 @@ export function pagedText({ paragraphs, fit = '13,20', className = 'prose', maxH
     if (!wrap.isConnected) return
     box.textContent = full
     box.style.fontSize = ''
-    const size = fitText(box, { min, max })
+    // A stylesheet may set the range per composition with --fit-min / --fit-max (px), as fitAll does for [data-fit].
+    const cs = getComputedStyle(box)
+    const cssMin = parseFloat(cs.getPropertyValue('--fit-min'))
+    const cssMax = parseFloat(cs.getPropertyValue('--fit-max'))
+    const size = fitText(box, { min: cssMin > 0 ? cssMin : min, max: cssMax > 0 ? cssMax : max })
     if (!box.dataset.overflow) {
       pages = [full]
       page = 0

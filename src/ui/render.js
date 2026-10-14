@@ -154,9 +154,13 @@ export function createRenderer({ root, live, journey, audit = false }) {
   function budget() {
     const body = root.querySelector('.ply-work .ply-body[data-budget]')
     if (!body) return
-    const over = () => body.scrollHeight > body.clientHeight + 2
+    // Overflow of the body, or of the reply column and the field inside it: a grid track that is too short squeezes
+    // them without clipping, so the body alone would not show it.
+    const over = () => body.scrollHeight > body.clientHeight + 2 || [...body.querySelectorAll('.conv-reply, .composer')].some(e => e.scrollHeight > e.clientHeight + 2)
     if (!over()) return
     const steps = [
+      // The exchanges so far (tablet: below the field) give way before anything of the current exchange does.
+      () => { const s = body.querySelector('.conv-sofar'); const side = body.querySelector('.conv-side'); if (s && side && getComputedStyle(side).display === 'contents') s.hidden = true },
       () => { const r = body.querySelector('.reflection'); if (r) r.style.maxHeight = '2.7em' },
       () => { const q = body.querySelector('.question'); if (q) q.style.maxHeight = '2.3em' },
       () => { const o = body.querySelector('.options'); if (o && body.clientWidth >= 440) o.classList.add('is-two-col') },

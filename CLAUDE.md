@@ -21,6 +21,7 @@ Working notes for agents and people editing this repository.
 
 - No element may scroll: no `overflow: auto|scroll`, no scrolling textareas, no transcript lists. Fit text (`fitText`), page it (`pagedText`, `pagedList`), or disclose it in an overlay.
 - Every new text block needs a bounded height (a grid track or a `max-height`) so the fitter can act.
+- The conversation (`src/ui/conversation.js`, the `.conv` section of `app.css`) is one flat grid with named areas composed per viewport from the same DOM: phone (project / reading / field), short-and-wide (project + reading | field), tall tablet (… / exchanges so far below), desktop (reading + field | a panel with the project and the exchanges so far). Reading sizes come from CSS `--fit-min`/`--fit-max` and the `--q-max`/`--r-max`/`--st-max` caps per breakpoint; keep them such that the field fits at rest without the `budget()` fallback. A grid track that is too short squeezes a `min-height: 0` item without clipping, so the audit cannot see it: `budget()` checks the reply column and the composer for interior overflow, and the harness checks the Send button sits inside its card (`sendInside`).
 - Verify with the browser harness, not by eye: `npm run dev`, then `node tests/browser/run.mjs`. It must report 0 failures across all viewports before a change is done. `?audit` in the dev URL logs overflow after each render.
 
 ## Commands

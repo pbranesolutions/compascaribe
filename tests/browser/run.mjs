@@ -473,13 +473,15 @@ const convDom = page => evaluate(page, `JSON.stringify((() => {
   const sr = send ? send.getBoundingClientRect() : null
   return {
     words: t('.conv-quote'),
-    reflection: t('.conv-said .reflection'),
+    reflection: t('.conv-ai .reflection'),
     question: t('#q'),
-    reflectionPager: !!document.querySelector('.conv-said .reflection ~ .paged-pager .pager, .conv-ai .paged-pager .pager'),
-    questionPager: !!document.querySelector('.conv-said > .paged .paged-pager .pager'),
+    reflectionPager: !!document.querySelector('.conv-ai .conv-reading .paged-pager .pager'),
+    questionPager: !!document.querySelector('.conv-ai > .paged:not(.conv-reading) .paged-pager .pager'),
     hasComposer: !!ta,
     max: ta ? ta.maxLength : null,
     sendVisible: !!sr && sr.top >= 0 && sr.bottom <= window.innerHeight && sr.right <= window.innerWidth && sr.height >= 36,
+    // The field sits inside its card and the card inside its column: nothing is squeezed by a short grid track.
+    sendInside: (() => { if (!send) return true; const card = send.closest('.composer').getBoundingClientRect(); const col = send.closest('.conv-reply').getBoundingClientRect(); return sr.bottom <= card.bottom + 1 && card.bottom <= col.bottom + 1 && send.closest('.composer').scrollHeight <= send.closest('.composer').clientHeight + 2 })(),
     wordsHidden: getComputedStyle(document.querySelector('.conv-quote') || document.body).display === 'none' || !document.querySelector('.conv-quote'),
     retry: (() => { const b = document.querySelector('.conv-retry .btn-primary'); if (!b) return false; const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight && r.height >= 36 })(),
     editVisible: (() => { const b = document.querySelector('[aria-label="Edit your words"]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight })(),
@@ -530,7 +532,7 @@ async function conversationScenarios(page, vp) {
   const readingParked = tiny && vp.width < 560
   verdict(vp, 'conv-model-text', (readingParked || whole(d.reflection, SHORT_OPENING.reflection)) && whole(d.question, SHORT_OPENING.question) && ((d.reflection === SHORT_OPENING.reflection && d.question === SHORT_OPENING.question) || d.reflectionPager || d.questionPager), JSON.stringify({ r: (d.reflection || '').slice(0, 40), q: (d.question || '').slice(0, 40) }))
   verdict(vp, 'conv-one-question', (d.question.match(/\?/g) || []).length === 1 && !d.reflection.includes('?'), d.question)
-  verdict(vp, 'conv-field-ready', d.hasComposer && d.max === 480 && d.sendVisible, JSON.stringify({ composer: d.hasComposer, max: d.max, send: d.sendVisible }))
+  verdict(vp, 'conv-field-ready', d.hasComposer && d.max === 480 && d.sendVisible && d.sendInside, JSON.stringify({ composer: d.hasComposer, max: d.max, send: d.sendVisible, inside: d.sendInside }))
   verdict(vp, 'conv-requests', c.gate === 1 && c.conv === 1 && c.last.text === TEXT && c.last.qualification === 'e2e-qualification', JSON.stringify(c))
   // Customer-facing: no engineering labels; the AI is named once, quietly; the project and its edit are one control away.
   verdict(vp, 'conv-customer-facing', !d.technical && !/live|simulated|prototype/i.test(d.bar) && d.route === 0 && d.diag === null && d.editVisible, JSON.stringify({ technical: d.technical, bar: d.bar, route: d.route, diag: d.diag, edit: d.editVisible }))
@@ -568,7 +570,7 @@ async function conversationScenarios(page, vp) {
   c = await counts(page)
   await shotAudit('followup')
   verdict(vp, 'conv-followup-request', c.turns === before.turns + 1 && c.gate === before.gate && c.lastTurn.text === TEXT && c.lastTurn.qualification === 'e2e-renewed-1' && c.lastTurn.turns.length === 2 && c.lastTurn.turns[1].text === LONG, JSON.stringify({ turns: c.turns, gate: c.gate, q: c.lastTurn && c.lastTurn.qualification, n: c.lastTurn && c.lastTurn.turns.length }))
-  verdict(vp, 'conv-followup-shown', d.hasComposer && d.max === 480 && whole(d.question, TURN_ASK.question) && d.sendVisible && d.words === TEXT && !d.technical && /Compás Caribe/.test(d.speaker || '' ) , JSON.stringify({ q: d.question, composer: d.hasComposer, words: (d.words || '').slice(0, 20) }))
+  verdict(vp, 'conv-followup-shown', d.hasComposer && d.max === 480 && whole(d.question, TURN_ASK.question) && d.sendVisible && d.sendInside && d.words === TEXT && !d.technical && /Compás Caribe/.test(d.speaker || '' ) , JSON.stringify({ q: d.question, composer: d.hasComposer, inside: d.sendInside, words: (d.words || '').slice(0, 20) }))
   const history = await evaluate(page, 'JSON.stringify((() => { const b = document.querySelector(".conv-history"); if (!b) return { shown: false }; const r = b.getBoundingClientRect(); return { shown: getComputedStyle(b).display !== "none" && r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight } })())').then(JSON.parse)
   verdict(vp, 'conv-history-link', history.shown, 'the earlier exchange is one tap away')
   // The earlier answer is not left on the page as a transcript: one question, one field.
@@ -589,7 +591,7 @@ async function conversationScenarios(page, vp) {
   await sleep(150)
   d = await convDom(page)
   await shotAudit('followup-long')
-  verdict(vp, 'conv-followup-long-intact', whole(d.question, TURN_LONG.question) && (d.reflectionPager || d.questionPager || (d.reflection === TURN_LONG.reflection && d.question === TURN_LONG.question) || (tiny && vp.width < 560)), JSON.stringify({ rp: d.reflectionPager, qp: d.questionPager }))
+  verdict(vp, 'conv-followup-long-intact', whole(d.question, TURN_LONG.question) && d.sendInside && (d.reflectionPager || d.questionPager || (d.reflection === TURN_LONG.reflection && d.question === TURN_LONG.question) || (tiny && vp.width < 560)), JSON.stringify({ rp: d.reflectionPager, qp: d.questionPager, inside: d.sendInside }))
   await click(page, '.conv-history')
   await sleep(150)
   await shotAudit('exchange-multi')
